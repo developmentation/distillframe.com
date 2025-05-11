@@ -12,7 +12,22 @@ export default {
     },
     template: `
       <div class="flex flex-col gap-4">
-        <h3 class="text-xl font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Videos in Channel</h3>
+        <div class="flex justify-between items-center">
+          <h3 class="text-xl font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Videos in Channel</h3>
+          <label
+            class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all cursor-pointer"
+          >
+            Upload Video
+            <input
+              type="file"
+              accept="video/*"
+              @change="uploadVideo"
+              class="hidden"
+              ref="fileInput"
+              :key="uploadKey"
+            />
+          </label>
+        </div>
         <div v-if="videos.length === 0" class="text-center py-4" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
           No videos found. Upload a video to start.
         </div>
@@ -67,6 +82,7 @@ export default {
     data() {
       return {
         reattachKey: 0, // Used to force re-render of file input
+        uploadKey: 0, // Used to force re-render of upload input
       };
     },
     watch: {
@@ -82,11 +98,16 @@ export default {
         const file = event.target.files[0];
         if (!file) return;
         this.$emit('reattach-video', video, file);
-        // Force the file input to re-render, allowing re-selection
         this.reattachKey++;
       },
       removeVideo(video) {
         this.$emit('remove-video', video);
+      },
+      uploadVideo(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        this.$emit('upload-video', file);
+        this.uploadKey++;
       },
     },
     mounted() {

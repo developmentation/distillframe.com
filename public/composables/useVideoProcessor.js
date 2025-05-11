@@ -15,7 +15,7 @@ export function useVideoProcessor() {
           ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
   
           // Convert to base64 JPEG
-          const imageData = canvas.toDataURL('image/jpeg', 0.7);
+          const imageData = canvas.toDataURL('image/jpeg', 1);
           resolve(imageData);
         } catch (error) {
           console.error('Frame extraction failed:', error);

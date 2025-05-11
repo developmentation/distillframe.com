@@ -1,4 +1,3 @@
-import { useGlobal } from '../composables/useGlobal.js';
 import { useModels } from '../composables/useModels.js';
 
 export default {
@@ -17,17 +16,22 @@ export default {
     <div class="flex flex-col h-full">
       <h3 class="text-xl font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Agent Editor</h3>
       <div class="flex-1 overflow-y-auto">
-        <div v-for="agent in agents" :key="agent.id" class="mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <div v-if="agents.length === 0" class="text-center py-4" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
+          No agents found.
+        </div>
+        <div v-else v-for="agent in agents" :key="agent.id" class="mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
           <div class="flex justify-between items-center">
             <h4 class="text-lg font-medium" :class="darkMode ? 'text-gray-200' : 'text-gray-800'">{{ agent.data.name }}</h4>
-            <button @click="editAgent(agent)" class="py-1 px-3 bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
-              Edit
-            </button>
+            <div class="flex gap-2">
+              <button @click="editAgent(agent)" class="py-1 px-3 bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
+                Edit
+              </button>
+              <button @click="removeAgent(agent.id)" class="py-1 px-3 bg-red-500 dark:bg-red-400 dark:hover:bg-red-600 hover:bg-red-600 text-white rounded-lg transition-all">
+                Remove
+              </button>
+            </div>
           </div>
         </div>
-        <button @click="addAgent" class="w-full py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
-          Add Agent
-        </button>
       </div>
       <!-- Edit Modal -->
       <div v-if="isModalOpen" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-4">
@@ -93,20 +97,16 @@ export default {
       }
     }
 
-    function addAgent() {
-      agentName.value = '';
-      agentPrompt.value = '';
-      agentModel.value = 'gemini-1.5-flash';
-      editingAgent.value = null;
-      isModalOpen.value = true;
-    }
-
     function editAgent(agent) {
       agentName.value = agent.data.name;
       agentPrompt.value = agent.data.prompt || '';
       agentModel.value = agent.data.model || 'gemini-1.5-flash';
       editingAgent.value = agent;
       isModalOpen.value = true;
+    }
+
+    function removeAgent(agentId) {
+      emit('remove-agent', agentId);
     }
 
     function closeModal() {
@@ -146,8 +146,8 @@ export default {
       editingAgent,
       models,
       validateName,
-      addAgent,
       editAgent,
+      removeAgent,
       closeModal,
       saveAgent,
     };
