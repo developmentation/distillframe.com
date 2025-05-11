@@ -1,0 +1,40 @@
+{
+  "name": "distillframe",
+  "version": "0.0.2",
+  "description": "An image, transcript, and content extractor tool for business analysis",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "agentic",
+    "ai",
+    "architecture",
+    "tools",
+    "open source",
+    "MIT"
+  ],
+  "author": "The Government of Alberta",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@azure/openai": "^2.0.0",
+    "@deepgram/sdk": "^3.9.0",
+    "@google/genai": "^0.6.0",
+    "@google/generative-ai": "^0.24.0",
+    "@mistralai/mistralai": "^1.3.6",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "elevenlabs": "^1.56.0",
+    "express": "^4.21.2",
+    "groq-sdk": "^0.9.1",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.12.1",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.76.0",
+    "sharp": "^0.34.1",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.0.3"
+  }
+}

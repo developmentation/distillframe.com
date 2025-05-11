@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="DistillFrame.com - Collaborative AI Generation">
+  <meta name="description" content="Build documents and artifacts with multiple people and multiple AI agents in real time.">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ai-starter-template.onrender.com/">
+  <meta property="og:title" content="DistillFrame.com">
+  <meta property="og:description" content="Get started building AI agents and collaborating in real time.">
+  <meta property="og:image" content="./assets/previewImage.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://ai-starter-template.onrender.com/">
+  <meta property="twitter:title" content="DistillFrame.com">
+  <meta property="twitter:description" content="Get started building AI agents and collaborating in real time.">
+  <meta property="twitter:image" content="./assets/previewImage.png">
+
+  <title>DistillFrame.com</title>
+
+  <link rel="icon" type="image/png" href="/assets/fav.png" />
+
+  <!-- Vue and Vue Router -->
+  <script src="/plugins/vue.global.prod.js"></script>
+  <script src="/plugins/vue-router.global.js"></script>
+
+  <!-- Other Plugins -->
+  <script src="/plugins/axios.min.js"></script>
+
+  <!-- Primevue Icons -->
+  <link rel="stylesheet" href="/plugins/primeicons.css" />
+
+  <!-- Tailwind CSS -->
+  <script src="/plugins/tailwind.js"></script>
+
+  
+  <!-- Tailwind CSS Configuration -->
+  <script>
+    // Configure Tailwind to use class-based dark mode
+    tailwind.config = {
+      darkMode: 'class', // Use 'class' strategy instead of 'media'
+    };
+  </script>
+  
+  <!-- UUID -->
+  <script src="/plugins/uuidv4.min.js"></script>
+
+  <!-- Socket.io Client -->
+  <script src="/plugins/socket.io.min.js"></script>
+
+  <!-- Markdown and PDF -->
+  <script src="/plugins/markdown-it.min.js"></script>
+
+
+<!-- HLJS -->
+<link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css" id="hljs-theme">
+<script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+
+<!-- Load additional languages -->
+<script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/languages/go.min.js"></script>
+
+<script>hljs.highlightAll();</script>
+
+<style>
+
+.hljs {
+  padding:8px;
+  margin:4px;
+}
+
+
+.hljs {
+      padding: 8px;
+      margin: 4px;
+      max-width: 100%; /* Ensure it doesn't exceed parent width */
+      width: 100%; /* Fill parent container */
+      box-sizing: border-box; /* Include padding/margins in width */
+    }
+
+    /* Force text wrapping in pre tags */
+    pre.hljs {
+      white-space: pre-wrap; /* Wrap text */
+      word-wrap: break-word; /* Legacy support */
+      word-break: break-all; /* Break long words */
+      overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+
+ 
+
+/* Prevent textarea from resizing beyond container */
+.resize-none {
+  resize: none;
+}
+
+/* Ensure sticky works correctly */
+.sticky {
+  position: sticky;
+}
+
+</style>
+
+
+  <!-- Include Main Script -->
+  <script type="module" src="/main.js"></script>
+ 
+</head>
+<body>
+  <div  id="app"></div>
+  <div id="modal-portal"></div>
+</body>
+</html>
