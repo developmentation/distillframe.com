@@ -172,11 +172,10 @@ exports.geminiBatchImageController = async (req, res) => {
     const base64Content = imageData.replace(base64Regex, '');
     let imageBuffer = Buffer.from(base64Content, 'base64');
 
-    // Resize and convert to JPG for consistency
+   // Convert to JPG for consistency, without resizing
     imageBuffer = await sharp(imageBuffer)
-      .resize({ width: 640, withoutEnlargement: true })
-      .jpeg({ quality: 70 })
-      .toBuffer();
+    .jpeg({ quality: 90 }) // Quality set to 0.9
+    .toBuffer();
 
     const client = createGeminiClient();
 
