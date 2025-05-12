@@ -1,6 +1,6 @@
 {
   "name": "distillframe",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "An image, transcript, and content extractor tool for business analysis",
   "main": "index.js",
   "scripts": {

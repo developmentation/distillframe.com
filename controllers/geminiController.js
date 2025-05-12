@@ -58,7 +58,7 @@ async function processImagePrompt(client, modelName, imageBuffer, systemPrompt, 
     if (part.text) {
       textContent += part.text;
     } else if (part.inlineData) {
-      outputImage = part.inlineData.data; // Base64 image, if returned
+      outputImage = part.inlineData.data;
     }
   }
 
@@ -78,17 +78,39 @@ async function processImagePrompt(client, modelName, imageBuffer, systemPrompt, 
 // Controller: Handle text-only prompts
 exports.geminiTextController = async (req, res) => {
   try {
-    const { prompt, model = 'gemini-1.5-flash' } = req.body;
+    console.log('geminiTextController REQUEST BODY:', req.body);
 
-    if (!prompt) {
-      return res.status(400).json({ success: false, error: 'Prompt is required.' });
+    let systemPrompt, messageHistory, model;
+
+    if (req.body.prompt) {
+      // Handle legacy string prompt
+      systemPrompt = '';
+      messageHistory = [{ role: 'user', content: req.body.prompt }];
+      model = req.body.model || 'gemini-1.5-flash';
+    } else {
+      // Handle new object payload
+      ({ systemPrompt, messageHistory, model = 'gemini-1.5-flash' } = req.body);
+      if (!Array.isArray(messageHistory)) {
+        return res.status(400).json({
+          success: false,
+          error: 'messageHistory must be an array of { role, content } objects.',
+        });
+      }
     }
 
     const client = createGeminiClient();
-    const generativeModel = client.getGenerativeModel({ model });
+    const generativeModel = client.getGenerativeModel({ 
+      model,
+      systemInstruction: systemPrompt || '',
+    });
+
+    const contents = messageHistory.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.content }],
+    }));
 
     const result = await generativeModel.generateContent({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents,
       safetySettings: getSafetySettings(),
     });
 
@@ -120,7 +142,6 @@ exports.geminiImageController = async (req, res) => {
       });
     }
 
-    // Validate base64 image
     const base64Regex = /^data:image\/(png|jpeg|jpg);base64,/;
     if (!base64Regex.test(imageData)) {
       return res.status(400).json({
@@ -129,11 +150,9 @@ exports.geminiImageController = async (req, res) => {
       });
     }
 
-    // Extract base64 data (remove data URI prefix)
     const base64Content = imageData.replace(base64Regex, '');
     let imageBuffer = Buffer.from(base64Content, 'base64');
 
-    // Resize and convert to JPG for consistency
     imageBuffer = await sharp(imageBuffer)
       .resize({ width: 640, withoutEnlargement: true })
       .jpeg({ quality: 70 })
@@ -167,7 +186,6 @@ exports.geminiBatchImageController = async (req, res) => {
       });
     }
 
-    // Validate base64 image
     const base64Regex = /^data:image\/(png|jpeg|jpg);base64,/;
     if (!base64Regex.test(imageData)) {
       return res.status(400).json({
@@ -176,18 +194,15 @@ exports.geminiBatchImageController = async (req, res) => {
       });
     }
 
-    // Extract base64 data (remove data URI prefix)
     const base64Content = imageData.replace(base64Regex, '');
     let imageBuffer = Buffer.from(base64Content, 'base64');
 
-    // Convert to JPG for consistency, without resizing
     imageBuffer = await sharp(imageBuffer)
       .jpeg({ quality: 90 })
       .toBuffer();
 
     const client = createGeminiClient();
 
-    // Process all prompts in parallel
     const analysisPromises = agentPrompts.map(async ({ agentId, systemPrompt, messageHistory, model }) => {
       try {
         const response = await processImagePrompt(client, model || 'gemini-1.5-flash', imageBuffer, systemPrompt, messageHistory);

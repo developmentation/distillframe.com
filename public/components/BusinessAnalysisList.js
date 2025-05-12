@@ -27,22 +27,28 @@ export default {
         <h3 class="text-xl font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Business Analyses</h3>
         <!-- Generate Business Analysis Section -->
         <div class="mb-4 flex flex-col gap-2">
+          <div v-if="isGenerating" class="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg text-center text-sm" :class="darkMode ? 'text-yellow-300' : 'text-yellow-700'">
+            Generation in process, please wait
+          </div>
           <label class="text-gray-700 dark:text-gray-300">Select Agent for Business Analysis:</label>
           <select
             v-model="selectedBusinessAgent"
             class="w-full p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none transition-all"
+            :disabled="isGenerating"
           >
-            <option v-if="selectedAgents.length === 0" disabled>No agents selected</option>
-            <option v-for="agentId in selectedAgents" :key="agentId" :value="agentId">
-              {{ getAgentName(agentId) }}
+            <option v-if="entities.agents.length === 0" disabled>No agents available</option>
+            <option v-for="agent in entities.agents" :key="agent.id" :value="agent.id">
+              {{ agent.data.name }}
             </option>
           </select>
           <button
             @click="generateBusinessAnalysis"
-            class="w-full py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
-            :disabled="entities.image.length === 0 || !selectedBusinessAgent"
+            class="w-full py-2 px-4 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-all flex items-center justify-center gap-2"
+            :class="{ 'opacity-50 cursor-not-allowed': isGenerating || entities.image.length === 0 || !selectedBusinessAgent }"
+            :disabled="isGenerating || entities.image.length === 0 || !selectedBusinessAgent"
           >
-            Generate Business Analysis
+            <span v-if="isGenerating" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+            <span>Generate Business Analysis</span>
           </button>
         </div>
         <!-- Business Analysis List -->
@@ -83,24 +89,26 @@ export default {
     data() {
       return {
         selectedBusinessAgent: null,
+        isGenerating: false,
       };
     },
     mounted() {
       console.log('BusinessAnalysisList received analyses:', this.analyses);
-      // Set default selected agent if available
-      if (this.selectedAgents.length > 0) {
-        this.selectedBusinessAgent = this.selectedAgents[0];
+      if (this.entities.agents.length > 0) {
+        this.selectedBusinessAgent = this.entities.agents[0].id;
       }
     },
     watch: {
       analyses(newAnalyses) {
         console.log('BusinessAnalysisList analyses updated:', newAnalyses);
       },
-      selectedAgents(newAgents) {
-        // Update selectedBusinessAgent if the current one is no longer in the list
-        if (!newAgents.includes(this.selectedBusinessAgent)) {
-          this.selectedBusinessAgent = newAgents.length > 0 ? newAgents[0] : null;
-        }
+      'entities.agents': {
+        handler(newAgents) {
+          if (!newAgents.some(agent => agent.id === this.selectedBusinessAgent)) {
+            this.selectedBusinessAgent = newAgents.length > 0 ? newAgents[0].id : null;
+          }
+        },
+        deep: true,
       },
     },
     methods: {
@@ -111,13 +119,15 @@ export default {
         const date = new Date(timestamp);
         return date.toLocaleString();
       },
-      getAgentName(agentId) {
-        const agent = this.entities.agents.find(a => a.id === agentId);
-        return agent ? agent.data.name : 'Unknown Agent';
-      },
-      generateBusinessAnalysis() {
+      async generateBusinessAnalysis() {
         if (!this.entities.image.length || !this.selectedBusinessAgent) return;
-        this.$emit('generate-business-analysis', this.selectedBusinessAgent);
+
+        this.isGenerating = true;
+        try {
+          await this.$emit('generate-business-analysis', this.selectedBusinessAgent);
+        } finally {
+          this.isGenerating = false;
+        }
       },
       deleteAnalysis(analysisId) {
         this.$emit('delete-analysis', analysisId);
@@ -135,4 +145,4 @@ export default {
         URL.revokeObjectURL(url);
       },
     },
-  };
+};

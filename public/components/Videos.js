@@ -33,6 +33,7 @@ export default {
             @reattach-video="reattachVideo"
             @remove-video="removeVideo"
             @edit-video="openEditVideoModal"
+            @upload-video="handleVideoUpload"
             :darkMode="darkMode"
           />
         </div>
@@ -228,6 +229,7 @@ export default {
     }
 
     async function handleVideoUpload(file) {
+      console.log('handleVideoUpload called with file:', file);
       if (!file) return;
 
       const videoId = uuidv4();
@@ -237,10 +239,15 @@ export default {
         description: '',
         fileSize: file.size,
         mimeType: file.type,
+        channel: channelName.value,
       };
+      console.log('Adding video to entities with videoData:', videoData);
       const addedVideoId = addEntity('video', videoData);
+      console.log('Added video ID:', addedVideoId);
+      console.log('Updated entities.video:', entities.value.video);
 
       const videoEntity = entities.value.video.find(v => v.id === addedVideoId);
+      console.log('Found videoEntity:', videoEntity);
       video.value = videoEntity;
       videoUrl.value = URL.createObjectURL(file);
 
@@ -431,7 +438,6 @@ export default {
       const agent = entities.value.agents.find(a => a.id === selectedBusinessAgent);
       if (!agent) return;
 
-      // Construct systemPrompt
       const systemPrompt = [
         ...(agent.data.systemPrompts || []),
       ]
@@ -439,23 +445,19 @@ export default {
         .filter(c => c)
         .join('\n\n') || 'No system prompts provided.';
 
-      // Construct messageHistory
       const messageHistory = [];
 
-      // Add projectPrompt
       messageHistory.push({
         role: 'user',
         content: projectPrompt.value || 'No project prompt provided.',
       });
 
-      // Add concatenated userPrompts
       const userPromptContent = agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.';
       messageHistory.push({
         role: 'user',
         content: userPromptContent,
       });
 
-      // Add frame analysis texts
       entities.value.image.forEach(image => {
         image.data.analysis.forEach(analysis => {
           const text = analysis.response?.text || analysis.response?.description || '';
@@ -473,6 +475,8 @@ export default {
         messageHistory,
         model: agent.data.model || 'gemini-1.5-flash',
       };
+
+      console.log('Business Analysis LLM PAYLOAD:', promptData);
 
       try {
         const markdown = await generateText(promptData);

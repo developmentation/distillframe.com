@@ -6,19 +6,18 @@ export function useGeminiApi() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageData,
-            agentPrompts, // Array of { agentId, systemPrompt, messageHistory, model }
+            agentPrompts,
           }),
         });
-  
+
         const { success, data, error } = await response.json();
         if (!success) {
           throw new Error(error || 'Failed to analyze frame batch');
         }
-  
-        return data; // Array of { agentId, response: { text, image } }
+
+        return data;
       } catch (error) {
         console.error('Gemini batch image analysis failed:', error);
-        // Retry once
         try {
           const retryResponse = await fetch('/api/gemini/batch-images', {
             method: 'POST',
@@ -28,55 +27,68 @@ export function useGeminiApi() {
               agentPrompts,
             }),
           });
-  
+
           const { success, data, error: retryError } = await retryResponse.json();
           if (!success) {
             throw new Error(retryError || 'Retry failed');
           }
-  
+
           return data;
         } catch (retryError) {
           console.error('Gemini batch image retry failed:', retryError);
-          throw retryError; // Let the caller handle the error
+          throw retryError;
         }
       }
     }
-  
-    async function generateText(prompt) {
+
+    async function generateText(promptData) {
       try {
+        let payload;
+        let model;
+
+        if (typeof promptData === 'string') {
+          // Handle legacy string prompt
+          payload = { prompt: promptData, model: 'gemini-1.5-flash' };
+          model = 'gemini-1.5-flash';
+        } else {
+          // Handle new object payload
+          const { systemPrompt, messageHistory, model: specifiedModel } = promptData;
+          model = specifiedModel || 'gemini-1.5-flash';
+          payload = {
+            systemPrompt: systemPrompt || '',
+            messageHistory: messageHistory || [],
+            model,
+          };
+        }
+
+        console.log('generateText PAYLOAD:', payload);
+
         const response = await fetch('/api/gemini/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            model: 'gemini-1.5-flash',
-          }),
+          body: JSON.stringify(payload),
         });
-  
+
         const { success, data, error } = await response.json();
         if (!success) {
           throw new Error(error || 'Failed to generate text');
         }
-  
+
         return data.text;
       } catch (error) {
         console.error('Gemini text generation failed:', error);
-        // Retry once
         try {
           const retryResponse = await fetch('/api/gemini/text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt,
-              model: 'gemini-1.5-flash',
-            }),
+            body: JSON.stringify(promptData),
           });
-  
+
           const { success, data, error: retryError } = await retryResponse.json();
           if (!success) {
             throw new Error(retryError || 'Retry failed');
           }
-  
+
           return data.text;
         } catch (retryError) {
           console.error('Gemini text retry failed:', retryError);
@@ -84,7 +96,7 @@ export function useGeminiApi() {
         }
       }
     }
-  
+
     return {
       analyzeFrame,
       generateText,
