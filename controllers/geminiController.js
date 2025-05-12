@@ -20,24 +20,32 @@ const getSafetySettings = () => [
 ];
 
 // Helper: Process a single image prompt
-async function processImagePrompt(client, modelName, imageBuffer, prompt) {
-  const generativeModel = client.getGenerativeModel({ model: modelName });
+async function processImagePrompt(client, modelName, imageBuffer, systemPrompt, messageHistory) {
+  const generativeModel = client.getGenerativeModel({ 
+    model: modelName,
+    systemInstruction: systemPrompt || '',
+  });
   const jpgBase64 = imageBuffer.toString('base64');
 
-  const result = await generativeModel.generateContent({
-    contents: [
+  const contents = messageHistory.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }],
+  }));
+
+  contents.push({
+    role: 'user',
+    parts: [
       {
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: jpgBase64,
-            },
-          },
-        ],
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: jpgBase64,
+        },
       },
     ],
+  });
+
+  const result = await generativeModel.generateContent({
+    contents,
     safetySettings: getSafetySettings(),
   });
 
@@ -132,7 +140,7 @@ exports.geminiImageController = async (req, res) => {
       .toBuffer();
 
     const client = createGeminiClient();
-    const responseData = await processImagePrompt(client, model, imageBuffer, prompt);
+    const responseData = await processImagePrompt(client, model, imageBuffer, prompt, [{ role: 'user', content: prompt }]);
 
     return res.status(200).json({
       success: true,
@@ -155,7 +163,7 @@ exports.geminiBatchImageController = async (req, res) => {
     if (!imageData || !Array.isArray(agentPrompts) || agentPrompts.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'imageData and agentPrompts (array of { agentId, prompt, model }) are required.',
+        error: 'imageData and agentPrompts (array of { agentId, systemPrompt, messageHistory, model }) are required.',
       });
     }
 
@@ -172,17 +180,17 @@ exports.geminiBatchImageController = async (req, res) => {
     const base64Content = imageData.replace(base64Regex, '');
     let imageBuffer = Buffer.from(base64Content, 'base64');
 
-   // Convert to JPG for consistency, without resizing
+    // Convert to JPG for consistency, without resizing
     imageBuffer = await sharp(imageBuffer)
-    .jpeg({ quality: 90 }) // Quality set to 0.9
-    .toBuffer();
+      .jpeg({ quality: 90 })
+      .toBuffer();
 
     const client = createGeminiClient();
 
     // Process all prompts in parallel
-    const analysisPromises = agentPrompts.map(async ({ agentId, prompt, model }) => {
+    const analysisPromises = agentPrompts.map(async ({ agentId, systemPrompt, messageHistory, model }) => {
       try {
-        const response = await processImagePrompt(client, model || 'gemini-1.5-flash', imageBuffer, prompt);
+        const response = await processImagePrompt(client, model || 'gemini-1.5-flash', imageBuffer, systemPrompt, messageHistory);
         return { agentId, response };
       } catch (error) {
         console.error(`❌ Gemini Batch Image Error for agent ${agentId}:`, error);
@@ -194,7 +202,7 @@ exports.geminiBatchImageController = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: results, // Array of { agentId, response: { text, image } }
+      data: results,
     });
   } catch (error) {
     console.error('❌ Gemini Batch Image Error:', error);

@@ -24,16 +24,26 @@ export default {
   },
   template: `
     <div class="flex flex-col h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 p-4 gap-4">
-      <!-- First Row: Videos in Channel (Full Width) -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <video-list
-          :videos="entities.video"
-          @select-video="selectVideo"
-          @reattach-video="reattachVideo"
-          @remove-video="removeVideo"
-          @upload-video="handleVideoUpload"
-          :darkMode="darkMode"
-        />
+      <!-- First Row: Videos in Channel and Project Prompt (50%/50% in desktop, responsive) -->
+      <div class="flex flex-col md:flex-row gap-4">
+        <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <video-list
+            :videos="entities.video"
+            @select-video="selectVideo"
+            @reattach-video="reattachVideo"
+            @remove-video="removeVideo"
+            @edit-video="openEditVideoModal"
+            :darkMode="darkMode"
+          />
+        </div>
+        <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <label class="text-gray-700 dark:text-gray-300 block mb-2">Project Prompt</label>
+          <textarea
+            v-model="projectPrompt"
+            class="w-full h-32 p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none transition-all"
+            placeholder="Describe the intent of this initiative (e.g., extract meaningful insights from videos for business analysis)..."
+          ></textarea>
+        </div>
       </div>
 
       <!-- Second Row: Video Display and Agent Selector (50%/50% in desktop, responsive) -->
@@ -80,27 +90,8 @@ export default {
         </div>
       </div>
 
-      <!-- Fourth Row: Generate Business Analysis (Full Width) -->
+      <!-- Fourth Row: Download Button (Full Width) -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <label class="text-gray-700 dark:text-gray-300">Select Agent for Business Analysis:</label>
-          <select
-            v-model="selectedBusinessAgent"
-            class="w-full p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none transition-all"
-          >
-            <option v-if="selectedAgents.length === 0" disabled>No agents selected</option>
-            <option v-for="agentId in selectedAgents" :key="agentId" :value="agentId">
-              {{ getAgentName(agentId) }}
-            </option>
-          </select>
-          <button
-            @click="generateBusinessAnalysis"
-            class="w-full py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
-            :disabled="entities.image.length === 0 || !selectedBusinessAgent"
-          >
-            Generate Business Analysis
-          </button>
-        </div>
         <download-button
           :frames="frames"
           :businessAnalysis="selectedBusinessAnalysis?.data?.markdown"
@@ -115,7 +106,12 @@ export default {
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <business-analysis-list
             :analyses="entities.businessAnalysis"
+            :selectedAgents="selectedAgents"
+            :entities="entities"
+            :projectPrompt="projectPrompt"
             @select-analysis="selectBusinessAnalysis"
+            @generate-business-analysis="generateBusinessAnalysis"
+            @delete-analysis="deleteBusinessAnalysis"
             :darkMode="darkMode"
           />
         </div>
@@ -124,6 +120,48 @@ export default {
             :analysis="selectedBusinessAnalysis"
             :darkMode="darkMode"
           />
+        </div>
+      </div>
+
+      <!-- Edit Video Modal -->
+      <div
+        v-if="showEditModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
+      >
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Video</h2>
+          <div class="flex flex-col gap-4">
+            <div>
+              <label class="text-gray-700 dark:text-gray-300 block mb-1">Video Name</label>
+              <input
+                v-model="editVideoData.name"
+                class="w-full p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                placeholder="Enter video name"
+              />
+            </div>
+            <div>
+              <label class="text-gray-700 dark:text-gray-300 block mb-1">Video Description</label>
+              <textarea
+                v-model="editVideoData.description"
+                class="w-full h-24 p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                placeholder="Enter video description"
+              ></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button
+                @click="closeEditVideoModal"
+                class="py-2 px-4 bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 hover:bg-gray-400 text-gray-900 dark:text-white rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                @click="saveVideoEdits"
+                class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -152,20 +190,16 @@ export default {
     const selectedBusinessAnalysis = Vue.ref(null);
     const includeImages = Vue.ref(false);
     const isHistorySynced = Vue.ref(false);
-    const selectedBusinessAgent = Vue.ref(null);
     const selectedAgents = Vue.ref([]);
+    const projectPrompt = Vue.ref('');
+    const showEditModal = Vue.ref(false);
+    const editVideoData = Vue.ref({ id: null, name: '', description: '' });
 
     Vue.onMounted(() => {
       eventBus.$on('sync-history-data', () => {
         isHistorySynced.value = true;
         loadChannelData();
         const channelEntity = entities.value.channel.find(c => c.id === channelName.value);
-        if (channelEntity?.data?.selectedBusinessAgent) {
-          const agent = entities.value.agents.find(a => a.id === channelEntity.data.selectedBusinessAgent);
-          if (agent) {
-            selectedBusinessAgent.value = agent.id;
-          }
-        }
         selectedAgents.value = entities.value.agents.map(agent => agent.id);
       });
     });
@@ -173,29 +207,6 @@ export default {
     Vue.onUnmounted(() => {
       eventBus.$off('sync-history-data');
     });
-
-    Vue.watch(selectedBusinessAgent, (newAgentId) => {
-      if (newAgentId) {
-        updateChannelBusinessAgent(newAgentId);
-      }
-    });
-
-    function updateChannelBusinessAgent(agentId) {
-      const channelEntity = entities.value.channel.find(c => c.id === channelName.value);
-      if (channelEntity) {
-        updateEntity('channel', channelName.value, {
-          ...channelEntity.data,
-          selectedBusinessAgent: agentId,
-        });
-      } else {
-        addEntity('channel', {
-          id: channelName.value,
-          locked: false,
-          users: [],
-          selectedBusinessAgent: agentId,
-        });
-      }
-    }
 
     function loadChannelData() {
       const channel = channelName.value;
@@ -223,6 +234,7 @@ export default {
       const videoData = {
         id: videoId,
         name: file.name,
+        description: '',
         fileSize: file.size,
         mimeType: file.type,
       };
@@ -270,26 +282,52 @@ export default {
       }
     }
 
+    function openEditVideoModal(videoEntity) {
+      editVideoData.value = {
+        id: videoEntity.id,
+        name: videoEntity.data.name,
+        description: videoEntity.data.description || '',
+      };
+      showEditModal.value = true;
+    }
+
+    function closeEditVideoModal() {
+      showEditModal.value = false;
+      editVideoData.value = { id: null, name: '', description: '' };
+    }
+
+    function saveVideoEdits() {
+      if (editVideoData.value.id) {
+        const videoEntity = entities.value.video.find(v => v.id === editVideoData.value.id);
+        if (videoEntity) {
+          updateEntity('video', videoEntity.id, {
+            ...videoEntity.data,
+            name: editVideoData.value.name,
+            description: editVideoData.value.description,
+          });
+        }
+      }
+      closeEditVideoModal();
+    }
+
     function selectBusinessAnalysis(analysisId) {
       const analysis = entities.value.businessAnalysis.find(ba => ba.id === analysisId);
       selectedBusinessAnalysis.value = analysis;
     }
 
-    function toggleAgent(agentId) {
-      if (selectedAgents.value.includes(agentId)) {
-        selectedAgents.value = selectedAgents.value.filter(id => id !== agentId);
-        if (selectedBusinessAgent.value === agentId) {
-          selectedBusinessAgent.value = selectedAgents.value.length > 0 ? selectedAgents.value[0] : null;
-          updateChannelBusinessAgent(selectedBusinessAgent.value);
-        }
-      } else {
-        selectedAgents.value = [...selectedAgents.value, agentId];
+    function deleteBusinessAnalysis(analysisId) {
+      removeEntity('businessAnalysis', analysisId);
+      if (selectedBusinessAnalysis.value?.id === analysisId) {
+        selectedBusinessAnalysis.value = null;
       }
     }
 
-    function getAgentName(agentId) {
-      const agent = entities.value.agents.find(a => a.id === agentId);
-      return agent ? agent.data.name : 'Unknown Agent';
+    function toggleAgent(agentId) {
+      if (selectedAgents.value.includes(agentId)) {
+        selectedAgents.value = selectedAgents.value.filter(id => id !== agentId);
+      } else {
+        selectedAgents.value = [...selectedAgents.value, agentId];
+      }
     }
 
     async function handleExtractFrame({ timestamp, imageData }) {
@@ -319,17 +357,34 @@ export default {
     async function processFrame(imageId, imageData, timestamp, sequence) {
       const agentPrompts = entities.value.agents
         .filter(agent => selectedAgents.value.includes(agent.id))
-        .map(agent => ({
-          agentId: agent.id,
-          prompt: agent.data.prompt || [
+        .map(agent => {
+          const systemPrompt = [
             ...(agent.data.systemPrompts || []),
             ...(agent.data.userPrompts || []),
           ]
             .map(p => p.content)
             .filter(c => c)
-            .join('\n\n'),
-          model: agent.data.model || 'gemini-1.5-flash',
-        }));
+            .join('\n\n');
+
+          const messageHistory = [
+            { role: 'user', content: projectPrompt.value || 'No project prompt provided.' },
+            {
+              role: 'user',
+              content: `Video Name: ${video.value.data.name}\nVideo Description: ${video.value.data.description || 'No description provided.'}`,
+            },
+            {
+              role: 'user',
+              content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
+            },
+          ];
+
+          return {
+            agentId: agent.id,
+            systemPrompt,
+            messageHistory,
+            model: agent.data.model || 'gemini-1.5-flash',
+          };
+        });
 
       try {
         const results = await analyzeFrame(imageData, agentPrompts);
@@ -370,38 +425,60 @@ export default {
       selectedBusinessAnalysis.value = null;
     }
 
-    async function generateBusinessAnalysis() {
-      if (!entities.value.image.length || !selectedBusinessAgent.value) return;
+    async function generateBusinessAnalysis(selectedBusinessAgent) {
+      if (!entities.value.image.length || !selectedBusinessAgent) return;
 
-      const agent = entities.value.agents.find(a => a.id === selectedBusinessAgent.value);
+      const agent = entities.value.agents.find(a => a.id === selectedBusinessAgent);
       if (!agent) return;
 
-      const imagesByVideo = {};
+      // Construct systemPrompt
+      const systemPrompt = [
+        ...(agent.data.systemPrompts || []),
+      ]
+        .map(p => p.content)
+        .filter(c => c)
+        .join('\n\n') || 'No system prompts provided.';
+
+      // Construct messageHistory
+      const messageHistory = [];
+
+      // Add projectPrompt
+      messageHistory.push({
+        role: 'user',
+        content: projectPrompt.value || 'No project prompt provided.',
+      });
+
+      // Add concatenated userPrompts
+      const userPromptContent = agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.';
+      messageHistory.push({
+        role: 'user',
+        content: userPromptContent,
+      });
+
+      // Add frame analysis texts
       entities.value.image.forEach(image => {
-        const videoUuid = image.data.videoUuid;
-        if (!imagesByVideo[videoUuid]) {
-          imagesByVideo[videoUuid] = [];
-        }
-        imagesByVideo[videoUuid].push({
-          timestamp: image.data.timestamp,
-          sequence: image.data.sequence,
-          analysis: image.data.analysis,
+        image.data.analysis.forEach(analysis => {
+          const text = analysis.response?.text || analysis.response?.description || '';
+          if (text) {
+            messageHistory.push({
+              role: 'user',
+              content: `Frame Analysis (Video UUID: ${image.data.videoUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+            });
+          }
         });
       });
 
-      const analysisData = Object.keys(imagesByVideo).map(videoUuid => ({
-        videoUuid,
-        video: entities.value.video.find(v => v.id === videoUuid)?.data || { name: 'Unknown Video' },
-        frames: imagesByVideo[videoUuid],
-      }));
-
-      const prompt = `${agent.data.prompt}\n\nAnalysis Data by Video:\n${JSON.stringify(analysisData, null, 2)}`;
+      const promptData = {
+        systemPrompt,
+        messageHistory,
+        model: agent.data.model || 'gemini-1.5-flash',
+      };
 
       try {
-        const markdown = await generateText(prompt);
+        const markdown = await generateText(promptData);
         businessAnalysis.value = markdown;
         const newAnalysisId = addEntity('businessAnalysis', {
-          videoUuid: video.value ? video.value.id : Object.keys(imagesByVideo)[0],
+          videoUuid: video.value ? video.value.id : entities.value.image[0]?.data.videoUuid,
           markdown,
         });
         selectBusinessAnalysis(newAnalysisId);
@@ -425,20 +502,25 @@ export default {
       businessAnalysis,
       selectedBusinessAnalysis,
       includeImages,
-      selectedBusinessAgent,
       selectedAgents,
+      projectPrompt,
+      showEditModal,
+      editVideoData,
       handleVideoUpload,
       reattachVideo,
       selectVideo,
       removeVideo,
+      openEditVideoModal,
+      closeEditVideoModal,
+      saveVideoEdits,
       handleExtractFrame,
       redoFrame,
       deleteFrame,
       selectFrame,
       selectBusinessAnalysis,
-      toggleAgent,
-      getAgentName,
+      deleteBusinessAnalysis,
       generateBusinessAnalysis,
+      toggleAgent,
       toggleIncludeImages,
     };
   },

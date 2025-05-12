@@ -69,6 +69,12 @@ export default {
                 />
               </label>
               <button
+                @click="editVideo(video)"
+                class="py-1 px-3 bg-yellow-500 dark:bg-yellow-400 dark:hover:bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-all"
+              >
+                <i class="pi pi-pencil"></i>
+              </button>
+              <button
                 @click="removeVideo(video)"
                 class="py-1 px-3 bg-red-500 dark:bg-red-400 dark:hover:bg-red-600 hover:bg-red-600 text-white rounded-lg transition-all"
               >
@@ -100,6 +106,9 @@ export default {
         this.$emit('reattach-video', video, file);
         this.reattachKey++;
       },
+      editVideo(video) {
+        this.$emit('edit-video', video);
+      },
       removeVideo(video) {
         this.$emit('remove-video', video);
       },
@@ -113,4 +122,4 @@ export default {
     mounted() {
       console.log('VideoList received videos on render:', this.videos);
     },
-  };
+};

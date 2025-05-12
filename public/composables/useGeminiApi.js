@@ -6,7 +6,7 @@ export function useGeminiApi() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageData,
-            agentPrompts, // Array of { agentId, prompt, model }
+            agentPrompts, // Array of { agentId, systemPrompt, messageHistory, model }
           }),
         });
   
@@ -89,4 +89,4 @@ export function useGeminiApi() {
       analyzeFrame,
       generateText,
     };
-  }
+}
