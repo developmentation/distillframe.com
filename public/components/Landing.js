@@ -81,7 +81,7 @@ export default {
               </p>
             </div>
             <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-cover bg-center aspect-[4/3] overflow-visible" :style="{ backgroundImage: 'url(' + video1Img + ')' }"></div>
+              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video1Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -99,7 +99,7 @@ export default {
               </p>
             </div>
             <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-cover bg-center aspect-[4/3] overflow-visible" :style="{ backgroundImage: 'url(' + video2Img + ')' }"></div>
+              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video2Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -117,7 +117,7 @@ export default {
               </p>
             </div>
             <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-cover bg-center aspect-[4/3] overflow-visible" :style="{ backgroundImage: 'url(' + video3Img + ')' }"></div>
+              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video3Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -125,7 +125,7 @@ export default {
         <!-- Real-Time Collaboration -->
         <section class="min-h-[300px] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-gray-800">
           <div class="flex flex-col md:flex-row-reverse items-center gap-8">
-            <div class="md:w-1/2">
+            <div >
               <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Real-Time Collaboration</h3>
               <p class="text-gray-600 dark:text-gray-300 mb-4">
                 Collaborate with team members in real time using Socket.IO. Share video analysis sessions, agent configurations, and reports seamlessly across users.
@@ -133,9 +133,6 @@ export default {
               <p class="text-gray-600 dark:text-gray-300">
                 Entity-based architecture ensures all actions (frame extraction, analysis, downloads) are synced instantly, with MongoDB persistence for reliable session recovery.
               </p>
-            </div>
-            <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-cover bg-center aspect-[4/3] overflow-visible" :style="{ backgroundImage: 'url(' + video4Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -171,10 +168,10 @@ export default {
     const { modelRegistry, fetchServerModels } = useModels();
     const router = VueRouter.useRouter();
 
-    const video1Img = Vue.computed(() => `/assets/video1.jpg`);
-    const video2Img = Vue.computed(() => `/assets/video2.jpg`);
-    const video3Img = Vue.computed(() => `/assets/video3.jpg`);
-    const video4Img = Vue.computed(() => `/assets/video4.jpg`);
+    const video1Img = Vue.computed(() => `/assets/landing1.jpg`);
+    const video2Img = Vue.computed(() => `/assets/landing2.jpg`);
+    const video3Img = Vue.computed(() => `/assets/landing3.jpg`);
+    const video4Img = Vue.computed(() => `/assets/landing4.jpg`);
 
     const activeTab = Vue.ref('Landing');
     const tabs = ['Landing', 'Agents', 'Videos'];
