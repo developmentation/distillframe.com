@@ -66,6 +66,8 @@ export default {
           <frame-gallery
             :frames="frames"
             @select-frame="selectFrame"
+            @redo-frame="redoFrame"
+            @delete-frame="deleteFrame"
             :darkMode="darkMode"
           />
         </div>
@@ -133,14 +135,12 @@ export default {
     const { analyzeFrame, generateText } = useGeminiApi();
     const { generateAnalysis } = useBusinessAnalyst();
 
-    // State
-    const video = Vue.ref(null); // Current video entity
-    const videoUrl = Vue.ref(null); // Blob URL for video playback
-    const analyzingFrames = Vue.ref(new Set()); // Track frames being analyzed
+    const video = Vue.ref(null);
+    const videoUrl = Vue.ref(null);
+    const analyzingFrames = Vue.ref(new Set());
     const frames = Vue.computed(() => {
       if (!video.value) return [];
       const videoFrames = entities.value.image.filter(img => img.data.videoUuid === video.value.id);
-      console.log(`Frames for video ${video.value.id}:`, videoFrames);
       return videoFrames.map(frame => ({
         ...frame,
         isAnalyzing: analyzingFrames.value.has(frame.id),
@@ -148,42 +148,25 @@ export default {
     });
     const frameTimestamps = Vue.computed(() => frames.value.map(f => f.data.timestamp));
     const selectedFrame = Vue.ref(null);
-    const businessAnalysis = Vue.ref(null); // Raw businessAnalysis value (used temporarily during generation)
-    const selectedBusinessAnalysis = Vue.ref(null); // Selected business analysis entity
-    const includeImages = Vue.ref(false); // Download checkbox state
-    const isHistorySynced = Vue.ref(false); // Track if history sync is complete
-    const selectedBusinessAgent = Vue.ref(null); // Selected agent ID for business analysis
-    const selectedAgents = Vue.ref([]); // Local array of selected agent IDs
+    const businessAnalysis = Vue.ref(null);
+    const selectedBusinessAnalysis = Vue.ref(null);
+    const includeImages = Vue.ref(false);
+    const isHistorySynced = Vue.ref(false);
+    const selectedBusinessAgent = Vue.ref(null);
+    const selectedAgents = Vue.ref([]);
 
-    // Wait for history sync before loading data
     Vue.onMounted(() => {
-      // Listen for the sync-history-data event to know when history is loaded
       eventBus.$on('sync-history-data', () => {
-        console.log('History sync completed, loading channel data');
-        console.log('Entities after sync:', entities.value);
-        console.log('All agents after sync:', entities.value.agents);
         isHistorySynced.value = true;
-        initializeDefaultAgents();
         loadChannelData();
-        // Load or set the selected agent
         const channelEntity = entities.value.channel.find(c => c.id === channelName.value);
         if (channelEntity?.data?.selectedBusinessAgent) {
           const agent = entities.value.agents.find(a => a.id === channelEntity.data.selectedBusinessAgent);
           if (agent) {
             selectedBusinessAgent.value = agent.id;
-            console.log('Loaded selected agent from channel:', agent.id);
-          } else if (entities.value.agents.length > 0) {
-            selectedBusinessAgent.value = entities.value.agents[0].id;
-            updateChannelBusinessAgent(entities.value.agents[0].id);
-            console.log('Set default agent:', entities.value.agents[0].id);
           }
-        } else if (entities.value.agents.length > 0) {
-          selectedBusinessAgent.value = entities.value.agents[0].id;
-          updateChannelBusinessAgent(entities.value.agents[0].id);
-          console.log('Set default agent:', entities.value.agents[0].id);
-        } else {
-          console.warn('No agents found after sync');
         }
+        selectedAgents.value = entities.value.agents.map(agent => agent.id);
       });
     });
 
@@ -191,55 +174,11 @@ export default {
       eventBus.$off('sync-history-data');
     });
 
-    // Watch for changes to selectedBusinessAgent to save to channel
     Vue.watch(selectedBusinessAgent, (newAgentId) => {
       if (newAgentId) {
         updateChannelBusinessAgent(newAgentId);
       }
     });
-
-    // Initialize default agents if none exist
-    function initializeDefaultAgents() {
-      if (entities.value.agents.length === 0) {
-        console.log('No agents loaded, creating default agents');
-        const defaultAgents = [
-          {
-            name: 'Description Agent',
-            prompt: 'Analyze this image and provide a detailed textual description of its contents, including objects, people, text, and context. Return the response as JSON with a `description` field.',
-            model: 'gemini-1.5-flash',
-            description: 'Default Description Agent for frame analysis',
-          },
-          {
-            name: 'Structured Data Agent',
-            prompt: 'Identify any tabular or form data in this image (e.g., Excel tables, forms). Return JSON with a `structuredData` field containing an array of fields (name, value) or table rows/columns.',
-            model: 'gemini-1.5-flash',
-            description: 'Default Structured Data Agent for frame analysis',
-          },
-          {
-            name: 'Knowledge Graph Agent',
-            prompt: 'Extract the main elements and their relationships in this image. Return JSON with a `knowledgeGraph` field containing `nodes` (id, label) and `edges` (source, target, relation).',
-            model: 'gemini-1.5-flash',
-            description: 'Default Knowledge Graph Agent for frame analysis',
-          },
-          {
-            name: 'Business Analyst',
-            prompt: 'Given an array of frame analysis JSONs from multiple videos, generate a comprehensive business analysis in Markdown. Include insights, trends, and recommendations based on descriptions, structured data, and knowledge graphs from all frames across all videos.',
-            model: 'gemini-1.5-flash',
-            description: 'Default Business Analyst for generating comprehensive reports',
-          },
-        ];
-
-        defaultAgents.forEach(agent => {
-          const agentId = addEntity('agents', agent);
-          // Automatically select all default agents
-          selectedAgents.value.push(agentId);
-        });
-      } else {
-        console.log(`Loaded ${entities.value.agents.length} agents, skipping default agent creation`);
-        // Select all agents by default
-        selectedAgents.value = entities.value.agents.map(agent => agent.id);
-      }
-    }
 
     function updateChannelBusinessAgent(agentId) {
       const channelEntity = entities.value.channel.find(c => c.id === channelName.value);
@@ -262,50 +201,43 @@ export default {
       const channel = channelName.value;
       if (!channel) return;
 
-      // Load frames and analysis for the channel
       const channelFrames = entities.value.image.filter(img => img.channel === channel);
       if (channelFrames.length > 0) {
         const videoId = channelFrames[0].data.videoUuid;
         const videoEntity = entities.value.video.find(v => v.id === videoId && v.channel === channel);
         if (videoEntity) {
           video.value = videoEntity;
-          // Note: videoUrl cannot be reloaded without the file; user must re-upload
         }
 
         const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.videoUuid === videoId && ba.channel === channel);
         if (channelAnalysis) {
-          selectBusinessAnalysis(channelAnalysis.id); // Select the first analysis by default
+          selectBusinessAnalysis(channelAnalysis.id);
         }
       }
     }
 
-    // Video Upload
     async function handleVideoUpload(file) {
       if (!file) return;
 
       const videoId = uuidv4();
       const videoData = {
-        id: videoId, // Ensure the id is included in the data
+        id: videoId,
         name: file.name,
         fileSize: file.size,
         mimeType: file.type,
       };
       const addedVideoId = addEntity('video', videoData);
-      console.log(`Added video with ID ${addedVideoId}`);
 
-      // Update video ref with the correct entity
       const videoEntity = entities.value.video.find(v => v.id === addedVideoId);
       video.value = videoEntity;
       videoUrl.value = URL.createObjectURL(file);
 
-      // Reset state
       selectedFrame.value = null;
       businessAnalysis.value = null;
       selectedBusinessAnalysis.value = null;
       analyzingFrames.value.clear();
     }
 
-    // Remove Video
     function removeVideo(videoEntity) {
       removeEntity('video', videoEntity.id);
       if (video.value?.id === videoEntity.id) {
@@ -318,21 +250,18 @@ export default {
       }
     }
 
-    // Reattach Video File
     function reattachVideo(videoEntity, file) {
       if (videoEntity.id === video.value?.id) {
         videoUrl.value = URL.createObjectURL(file);
       }
     }
 
-    // Select Video from List
     function selectVideo(videoEntity) {
       video.value = videoEntity;
-      videoUrl.value = null; // Reset videoUrl; user must reattach file to play
+      videoUrl.value = null;
       selectedFrame.value = null;
       businessAnalysis.value = null;
 
-      // Load associated business analysis
       const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.videoUuid === videoEntity.id && ba.channel === channelName.value);
       if (channelAnalysis) {
         selectBusinessAnalysis(channelAnalysis.id);
@@ -341,17 +270,14 @@ export default {
       }
     }
 
-    // Select Business Analysis
     function selectBusinessAnalysis(analysisId) {
       const analysis = entities.value.businessAnalysis.find(ba => ba.id === analysisId);
       selectedBusinessAnalysis.value = analysis;
     }
 
-    // Toggle Agent Selection
     function toggleAgent(agentId) {
       if (selectedAgents.value.includes(agentId)) {
         selectedAgents.value = selectedAgents.value.filter(id => id !== agentId);
-        // If the deselected agent was the selected business agent, reset it
         if (selectedBusinessAgent.value === agentId) {
           selectedBusinessAgent.value = selectedAgents.value.length > 0 ? selectedAgents.value[0] : null;
           updateChannelBusinessAgent(selectedBusinessAgent.value);
@@ -359,16 +285,13 @@ export default {
       } else {
         selectedAgents.value = [...selectedAgents.value, agentId];
       }
-      console.log('Updated selectedAgents:', selectedAgents.value);
     }
 
-    // Get Agent Name by ID
     function getAgentName(agentId) {
       const agent = entities.value.agents.find(a => a.id === agentId);
       return agent ? agent.data.name : 'Unknown Agent';
     }
 
-    // Frame Extraction and Analysis
     async function handleExtractFrame({ timestamp, imageData }) {
       if (!video.value) return;
 
@@ -380,14 +303,22 @@ export default {
         imageData,
         analysis: [],
       });
-      console.log(`Added image ${imageId} with videoUuid ${video.value.id}`);
 
-      // Track analysis status locally
       analyzingFrames.value.add(imageId);
+      await processFrame(imageId, imageData, timestamp, sequence);
+    }
 
-      // Collect prompts only for selected agents (excluding Business Analyst agents)
+    async function redoFrame(frameId) {
+      const frame = frames.value.find(f => f.id === frameId);
+      if (!frame) return;
+
+      analyzingFrames.value.add(frameId);
+      await processFrame(frameId, frame.data.imageData, frame.data.timestamp, frame.data.sequence);
+    }
+
+    async function processFrame(imageId, imageData, timestamp, sequence) {
       const agentPrompts = entities.value.agents
-        .filter(agent => selectedAgents.value.includes(agent.id) && !agent.data.name.toLowerCase().includes('business analyst'))
+        .filter(agent => selectedAgents.value.includes(agent.id))
         .map(agent => ({
           agentId: agent.id,
           prompt: agent.data.prompt || [
@@ -400,14 +331,8 @@ export default {
           model: agent.data.model || 'gemini-1.5-flash',
         }));
 
-      console.log(`Processing frame ${imageId} with ${agentPrompts.length} selected agents in a single batch request`);
-
-      // Send a single batch request to the backend
       try {
         const results = await analyzeFrame(imageData, agentPrompts);
-        console.log(`Received batch response for frame ${imageId}:`, results);
-
-        // Update image entity with all analysis results
         updateEntity('image', imageId, {
           videoUuid: video.value.id,
           timestamp,
@@ -416,7 +341,6 @@ export default {
           analysis: results,
         });
       } catch (error) {
-        console.error(`Batch analysis failed for frame ${imageId}:`, error);
         const failedAnalysis = agentPrompts.map(agent => ({
           agentId: agent.agentId,
           response: { error: error.message || 'Batch analysis failed' },
@@ -430,29 +354,28 @@ export default {
         });
       } finally {
         analyzingFrames.value.delete(imageId);
-        console.log(`Completed analysis for frame ${imageId}`);
       }
     }
 
-    // Frame Selection
-    function selectFrame(frameId) {
-      selectedFrame.value = frames.value.find(f => f.id === frameId) || null;
-      businessAnalysis.value = null; // Clear business analysis when a frame is selected
-      selectedBusinessAnalysis.value = null; // Clear selected business analysis when a frame is selected
+    function deleteFrame(frameId) {
+      removeEntity('image', frameId);
+      if (selectedFrame.value?.id === frameId) {
+        selectedFrame.value = null;
+      }
     }
 
-    // Business Analysis
+    function selectFrame(frameId) {
+      selectedFrame.value = frames.value.find(f => f.id === frameId) || null;
+      businessAnalysis.value = null;
+      selectedBusinessAnalysis.value = null;
+    }
+
     async function generateBusinessAnalysis() {
       if (!entities.value.image.length || !selectedBusinessAgent.value) return;
 
-      // Find the selected agent
       const agent = entities.value.agents.find(a => a.id === selectedBusinessAgent.value);
-      if (!agent) {
-        console.error('Selected agent not found');
-        return;
-      }
+      if (!agent) return;
 
-      // Group images by videoUuid
       const imagesByVideo = {};
       entities.value.image.forEach(image => {
         const videoUuid = image.data.videoUuid;
@@ -466,7 +389,6 @@ export default {
         });
       });
 
-      // Create a structured payload for the business analysis
       const analysisData = Object.keys(imagesByVideo).map(videoUuid => ({
         videoUuid,
         video: entities.value.video.find(v => v.id === videoUuid)?.data || { name: 'Unknown Video' },
@@ -479,19 +401,16 @@ export default {
         const markdown = await generateText(prompt);
         businessAnalysis.value = markdown;
         const newAnalysisId = addEntity('businessAnalysis', {
-          videoUuid: video.value ? video.value.id : Object.keys(imagesByVideo)[0], // Use current video or first video
+          videoUuid: video.value ? video.value.id : Object.keys(imagesByVideo)[0],
           markdown,
         });
-        // Automatically select the newly generated analysis
         selectBusinessAnalysis(newAnalysisId);
       } catch (error) {
-        console.error('Business analysis generation failed:', error);
         businessAnalysis.value = `Error: Unable to generate business analysis - ${error.message}`;
-        selectBusinessAnalysis(null); // Clear selection on error
+        selectBusinessAnalysis(null);
       }
     }
 
-    // Download Checkbox
     function toggleIncludeImages(value) {
       includeImages.value = value;
     }
@@ -513,6 +432,8 @@ export default {
       selectVideo,
       removeVideo,
       handleExtractFrame,
+      redoFrame,
+      deleteFrame,
       selectFrame,
       selectBusinessAnalysis,
       toggleAgent,

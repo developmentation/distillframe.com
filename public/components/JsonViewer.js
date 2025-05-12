@@ -16,7 +16,17 @@ export default {
     },
     template: `
       <div class="flex flex-col h-full">
-        <h3 class="text-xl font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Analysis Output</h3>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Analysis Output</h3>
+          <button
+            v-if="displayData"
+            @click="copyToClipboard"
+            class="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full"
+            title="Copy to Clipboard"
+          >
+            <i class="pi pi-copy"></i>
+          </button>
+        </div>
         <div class="flex-1 overflow-y-auto">
           <div v-if="frame || businessAnalysis">
             <pre class="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm whitespace-pre-wrap break-words" :class="darkMode ? 'text-gray-200' : 'text-gray-800'">
@@ -32,19 +42,27 @@ export default {
     computed: {
       displayData() {
         if (this.frame) {
-          // Extract only the data.analysis field from the frame
           return JSON.stringify(this.frame.data.analysis, null, 2);
         } else if (this.businessAnalysis) {
           try {
-            // If businessAnalysis is a string, attempt to parse it as JSON
             const parsed = JSON.parse(this.businessAnalysis);
             return JSON.stringify(parsed, null, 2);
           } catch (e) {
-            // If it's not JSON (e.g., Markdown), treat it as a string
             return this.businessAnalysis;
           }
         }
         return '';
       },
     },
-  };
+    methods: {
+      copyToClipboard() {
+        navigator.clipboard.writeText(this.displayData)
+          .then(() => {
+            console.log('JSON copied to clipboard');
+          })
+          .catch(err => {
+            console.error('Failed to copy JSON:', err);
+          });
+      },
+    },
+};

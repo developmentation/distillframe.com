@@ -17,7 +17,7 @@ export default {
           <div
             v-for="frame in frames"
             :key="frame.id"
-            class="relative rounded-lg shadow-md overflow-hidden cursor-pointer transition-transform hover:scale-105"
+            class="relative rounded-lg shadow-md overflow-hidden cursor-pointer"
             :class="{
               'border-2 border-red-500': frame.isAnalyzing,
               'border-2 border-green-500': !frame.isAnalyzing
@@ -31,6 +31,22 @@ export default {
             />
             <div class="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-60 p-2">
               <p class="text-white text-sm">{{ formatTime(frame.data.timestamp) }}</p>
+            </div>
+            <div class="absolute top-2 right-2 flex gap-2">
+              <button
+                @click.stop="redoFrame(frame.id)"
+                class="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded-full"
+                title="Redo Analysis"
+              >
+                <i class="pi pi-replay"></i>
+              </button>
+              <button
+                @click.stop="deleteFrame(frame.id)"
+                class="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                title="Delete Frame"
+              >
+                <i class="pi pi-trash"></i>
+              </button>
             </div>
           </div>
           <div v-if="!frames.length" class="col-span-full text-center py-8" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
@@ -51,10 +67,16 @@ export default {
       selectFrame(frameId) {
         this.$emit('select-frame', frameId);
       },
+      redoFrame(frameId) {
+        this.$emit('redo-frame', frameId);
+      },
+      deleteFrame(frameId) {
+        this.$emit('delete-frame', frameId);
+      },
       formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
       },
     },
-  };
+};

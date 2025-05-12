@@ -15,9 +15,26 @@ export default {
       <!-- Header -->
       <div class="mb-8 flex justify-between items-center">
         <h2 class="text-2xl font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Manage AI Agents</h2>
-        <button @click="openEditModal()" class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition-all">
-          Add New Agent
-        </button>
+        <div class="flex gap-4">
+          <select
+            v-model="selectedCategory"
+            class="p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600"
+          >
+            <option v-for="category in categories" :key="category.value" :value="category.value">{{ category.label }}</option>
+          </select>
+          <button
+            @click="addDefaultAgents"
+            class="py-2 px-4 bg-green-600 dark:bg-green-500 dark:hover:bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md transition-all"
+          >
+            Add Default Agents
+          </button>
+          <button
+            @click="openEditModal()"
+            class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition-all"
+          >
+            Add New Agent
+          </button>
+        </div>
       </div>
 
       <!-- Agents Grid -->
@@ -26,13 +43,14 @@ export default {
           v-for="agent in entities.agents"
           :key="agent.id"
           class="relative h-48 rounded-lg shadow-md overflow-hidden cursor-pointer transition-transform hover:scale-105"
-          :style="{ backgroundImage: \`url(\${agent.data.imageUrl ? agent.data.imageUrl : '/assets/aiagent\${agent.data.placeholderImage || 1}.jpg'})\`, backgroundSize: 'cover', backgroundPosition: 'center' }"
+          :style="{ backgroundImage: \`url(\${agent.data.imageUrl ? agent.data.imageUrl : returnImage(agent.data.placeholderImage)})\`, backgroundSize: 'cover', backgroundPosition: 'center' }"
         >
           <div class="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent"></div>
           <div class="relative z-10 flex flex-col h-full p-4 justify-between">
             <div>
               <h3 class="text-xl font-semibold text-white">{{ agent.data.name }}</h3>
               <p class="text-gray-300 text-sm mt-1 line-clamp-2">{{ agent.data.description }}</p>
+              <p class="text-gray-400 text-xs mt-1">{{ agent.data.category }}</p>
             </div>
             <div class="flex justify-end gap-2">
               <button @click.stop="openEditModal(agent)" class="py-1 px-3 bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
@@ -45,7 +63,7 @@ export default {
           </div>
         </div>
         <div v-if="!entities.agents.length" class="col-span-full text-center py-12" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
-          No agents created yet. Click "Add New Agent" to get started.
+          No agents created yet. Click "Add New Agent" or "Add Default Agents" to get started.
         </div>
       </div>
 
@@ -114,7 +132,7 @@ export default {
                         </select>
                       </td>
                       <td class="py-3 px-4">
-                        <button @click="openPromptModal('system', index, prompt.content)" class="py-1 px-3 bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
+                        <button @click="openPromptModal('system', index, prompt.content)" class="py-1 px-3 bg-blue-5 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
                           Edit
                         </button>
                       </td>
@@ -202,7 +220,7 @@ export default {
     const agentName = Vue.ref('');
     const agentDescription = Vue.ref('');
     const agentImageUrl = Vue.ref('');
-    const agentModel = Vue.ref('gemini-1.5-flash'); // Default to Gemini 1.5 Flash
+    const agentModel = Vue.ref('gemini-1.5-flash');
     const systemPrompts = Vue.ref([]);
     const userPrompts = Vue.ref([]);
     const nameError = Vue.ref('');
@@ -214,6 +232,107 @@ export default {
     const promptType = Vue.ref('');
     const promptIndex = Vue.ref(null);
     const promptContent = Vue.ref('');
+    const selectedCategory = Vue.ref('business');
+
+    const defaultAgentCategories = {
+      business: [
+        {
+          name: 'StructuredDataIdentifier',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Analyze the image for structured data such as graphs, charts, tables, Excel interfaces, or forms.' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a `structuredData` field containing identified data types and their descriptions.' },
+          ],
+          description: 'Identifies structured data in images like graphs, charts, or forms',
+          model: 'gemini-1.5-flash',
+          category: 'Business Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+        {
+          name: 'InterfaceDescriptor',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Provide a clear and detailed description of the interface in the image, including layout, components, and design elements.' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Format the response as JSON with a `description` field.' },
+          ],
+          description: 'Describes interfaces for clear recreation by others',
+          model: 'gemini-1.5-flash',
+          category: 'Business Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+        {
+          name: 'WorkflowAnalyzer',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Identify the workflow in the image (e.g., user-driven, linear, sequential, task-based, Gantt, Kanban, ticket-based).' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a `workflow` field describing the type and details.' },
+          ],
+          description: 'Analyzes workflows in interfaces',
+          model: 'gemini-1.5-flash',
+          category: 'Business Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+      ],
+      web: [
+        {
+          name: 'UIDescriptor',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Describe the core layout and components of the web interface in the image (e.g., title bars, headers, hero sections, dropdowns, forms, buttons).' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a `layout` field.' },
+          ],
+          description: 'Describes web interface layouts and components',
+          model: 'gemini-1.5-flash',
+          category: 'Web Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+        {
+          name: 'StyleDescriptor',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Analyze the styling of the web interface (e.g., light/dark mode, CSS framework like Tailwind, color scheme, typography).' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a `styles` field.' },
+          ],
+          description: 'Describes web interface styling and look-and-feel',
+          model: 'gemini-1.5-flash',
+          category: 'Web Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+        {
+          name: 'PurposeAnalysis',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Evaluate the likely purpose of the web interface components and their functionality.' },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a `purpose` field describing the inferred goals and interactions.' },
+          ],
+          description: 'Analyzes the purpose and functionality of web components',
+          model: 'gemini-1.5-flash',
+          category: 'Web Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+      ],
+    };
+
+    const categories = Vue.computed(() => Object.keys(defaultAgentCategories).map(key => ({
+      value: key,
+      label: defaultAgentCategories[key][0].category,
+    })));
+
+    function addDefaultAgents() {
+      const agents = defaultAgentCategories[selectedCategory.value] || [];
+      agents.forEach(agent => {
+        addEntity('agents', {
+          ...agent,
+          placeholderImage: Math.floor(Math.random() * 10) + 1, // Ensure a new random image on each addition
+        });
+      });
+    }
 
     function addAgentWithPlaceholder() {
       if (nameError.value || !agentName.value.trim()) return;
@@ -315,6 +434,7 @@ export default {
         model: agent.data.model,
         systemPrompts: agent.data.systemPrompts,
         userPrompts: agent.data.userPrompts,
+        category: agent.data.category || undefined,
         placeholderImage: agent.data.placeholderImage,
       });
     }
@@ -329,6 +449,7 @@ export default {
           model: agentModel.value,
           systemPrompts: systemPrompts.value,
           userPrompts: userPrompts.value,
+          category: editingAgent.value.data.category || undefined,
           placeholderImage: editingAgent.value.data.placeholderImage,
         });
       } else {
@@ -341,7 +462,11 @@ export default {
       removeEntity('agents', id);
     }
 
-    // Ensure Gemini models are available
+    function returnImage(placeholderImage)
+    {
+      return `/assets/aiagent${placeholderImage}.jpg`
+    }
+
     Vue.onMounted(() => {
       if (!models.value.some(m => m.model === 'gemini-1.5-flash')) {
         models.value.push({
@@ -377,6 +502,8 @@ export default {
       promptIndex,
       promptContent,
       models,
+      selectedCategory,
+      categories,
       validateName,
       validateEditName,
       openEditModal,
@@ -389,6 +516,8 @@ export default {
       updateAgent,
       saveAgent,
       removeAgent,
+      addDefaultAgents,
+      returnImage,
     };
   },
 };
