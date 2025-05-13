@@ -356,10 +356,26 @@ Proceed with the review and produce the requested deliverables based on the prov
         {
           name: 'UIDescriptor',
           userPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Describe the core layout and components of the web interface in the image (e.g., title bars, headers, hero sections, dropdowns, forms, buttons).' },
+            { id: uuidv4(), type: 'text', content: 
+              
+            `
+              Analyze the web interface in the provided image and provide a detailed description of its core layout and components. Include the following:
+              Overall Layout: Describe the structural organization (e.g., single-column, multi-column, grid-based, responsive design) and any notable patterns (e.g., fixed header, sticky sidebar).
+              Key Components: Identify and describe all major UI elements, such as:
+              Navigation elements (e.g., top nav bar, hamburger menu, breadcrumbs).
+              Content sections (e.g., hero section, feature cards, footer).
+              Interactive components (e.g., dropdown menus, forms, buttons, modals).
+              Visual elements (e.g., images, icons, carousels).
+              Component Details: For each component, specify its location (e.g., top-left, center), purpose (e.g., user input, navigation), and any observed interactivity (e.g., hover effects, click actions).
+              Responsive Considerations: Note any indicators of responsive design (e.g., mobile-friendly elements, viewport-specific layouts).
+              Contextual Observations: Highlight any unique or prominent features that stand out in the layout (e.g., asymmetry, overlapping elements). Ensure the description is precise, avoids assumptions not supported by the image, and is structured to facilitate integration into a web specification document.            
+                          
+            `
+            
+            },
           ],
           systemPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Return JSON with a `layout` field.' },
+            { id: uuidv4(), type: 'text', content: 'Return markdown formatted document specifically based on the elements of the layout.' },
           ],
           description: 'Describes web interface layouts and components',
           model: 'gemini-1.5-flash',
@@ -369,10 +385,27 @@ Proceed with the review and produce the requested deliverables based on the prov
         {
           name: 'StyleDescriptor',
           userPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Analyze the styling of the web interface (e.g., light/dark mode, CSS framework like Tailwind, color scheme, typography).' },
+            { id: uuidv4(), type: 'text', content: 
+              
+`
+            Enhanced Prompt: Conduct a thorough analysis of the styling and visual design of the web interface in the provided image. Provide a detailed breakdown of the following:
+            Theme and Mode: Identify the overall theme (e.g., light mode, dark mode, hybrid) and any evidence of theme-switching functionality.
+            Color Scheme: Describe the primary, secondary, and accent colors used, including approximate hex codes or color families (e.g., blue, neutral, vibrant). Note the use of gradients, contrasts, or background colors.
+            Typography: Analyze the fonts used, including:
+            Font families (e.g., sans-serif, serif) and their application (e.g., headings, body text).
+            Font sizes, weights, and styles (e.g., bold, italic).
+            Line spacing, letter spacing, and text alignment.
+            CSS Framework or Styling Approach: Infer the use of any CSS frameworks (e.g., Tailwind, Bootstrap) or custom styling based on class naming conventions, utility patterns, or design consistency.
+            Visual Styling: Describe additional styling elements, such as:
+            Border styles, shadows, or rounded corners.
+            Animations or transitions (e.g., button hover effects, fade-ins).
+            Spacing and padding (e.g., consistent margins, grid gaps).
+            Accessibility Considerations: Note any styling choices that impact accessibility (e.g., color contrast ratios, font readability). Ensure the analysis is specific, evidence-based, and structured for inclusion in a web specification document, avoiding speculative assumptions not visible in the image.
+`            
+            },
           ],
           systemPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Return JSON with a `styles` field.' },
+            { id: uuidv4(), type: 'text', content: 'Return markdown formatted document specifically based on the elements of the layout.' },
           ],
           description: 'Describes web interface styling and look-and-feel',
           model: 'gemini-1.5-flash',
@@ -382,17 +415,513 @@ Proceed with the review and produce the requested deliverables based on the prov
         {
           name: 'PurposeAnalysis',
           userPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Evaluate the likely purpose of the web interface components and their functionality.' },
+            { id: uuidv4(), type: 'text', content: 
+
+              `
+
+              Enhanced Prompt: Evaluate the web interface in the provided image to infer the likely purpose and functionality of its components and overall design. Provide a detailed analysis that includes:
+              Overall Purpose: Determine the primary goal of the web interface (e.g., e-commerce, informational, user dashboard, social platform) based on the layout, components, and content.
+              Component-Specific Purposes:
+              For each major UI component (e.g., forms, buttons, navigation menus, content sections), infer its intended function (e.g., user authentication, product filtering, content browsing).
+              Describe how the component supports user interactions or workflows (e.g., submitting data, navigating to another page, displaying dynamic content).
+              User Flow: Hypothesize the intended user journey or workflow based on the arrangement and interactivity of components (e.g., landing page to product page to checkout).
+              Target Audience: Identify the likely target audience (e.g., consumers, administrators, developers) and how the interface caters to their needs.
+              Functional Inferences: Note any implied functionalities, such as:
+              Data input/output (e.g., form submissions, search queries).
+              Dynamic content (e.g., API-driven results, real-time updates).
+              Integration with external systems (e.g., payment gateways, social logins).
+              Contextual Evidence: Ground all inferences in specific observations from the image (e.g., presence of a cart icon suggests e-commerce).
+              Gaps and Assumptions: Highlight any areas where the purpose is unclear and provide reasonable assumptions, clearly labeled as such. Ensure the analysis is logical, evidence-based, and structured to support the creation of a web specification document, avoiding speculative functionalities not supported by the image.                            
+              `
+              
+             },
           ],
           systemPrompts: [
-            { id: uuidv4(), type: 'text', content: 'Return JSON with a `purpose` field describing the inferred goals and interactions.' },
+            { id: uuidv4(), type: 'text', content: 'Return markdown formatted document specifically based on the elements of the layout.' },
           ],
           description: 'Analyzes the purpose and functionality of web components',
           model: 'gemini-1.5-flash',
           category: 'Web Analysis',
           placeholderImage: Math.floor(Math.random() * 10) + 1,
         },
+
+        {
+          name: 'BusinessAnalyst',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 
+              
+`
+You are a senior web content analyst tasked with reviewing a set of analyses generated by other language models based on web content, including screenshots of web pages, descriptions of related videos, and the stated objectives of the web project. The analyses include structured data, UI elements, layouts, components, key features, and other extracted information. Your objective is to evaluate the provided materials, assess the web content’s design and functionality, and produce a comprehensive Web Specification Document and a summarized report.
+
+### Instructions:
+1. **Understand the Web Project Objective**:
+   - Review the stated objective of the web project to understand its purpose, target audience, and intended outcomes (e.g., e-commerce, informational, SaaS platform).
+   - Identify any ambiguities or gaps in the objective that require clarification or assumptions.
+
+2. **Evaluate Video Descriptions**:
+   - Analyze the provided descriptions of videos related to the web content or user flows.
+   - Assess whether the descriptions align with the project objective and provide sufficient context for the web layouts, components, or functionality depicted in the screenshots.
+   - Note any discrepancies, missing details, or assumptions needed to address gaps in the video descriptions.
+
+3. **Evaluate Web Content Analyses**:
+   - Review the analyses of the web content, which include:
+     - Structured data extracted from the UI (e.g., text fields, buttons, links).
+     - Identified UI elements (e.g., navigation bars, hero sections, forms, modals).
+     - Web layouts (e.g., grid systems, responsive design breakpoints).
+     - Key components (e.g., carousels, search bars, footers).
+     - Features or functionalities inferred from the web content (e.g., user authentication, dynamic content loading).
+     - Other observations, such as accessibility or performance considerations.
+   - Assess the accuracy, completeness, and relevance of the analyses in relation to the project objective.
+   - Identify inconsistencies, gaps, or areas where further clarification is needed.
+   - Validate whether the extracted data, layouts, components, and features align with the web project’s purpose and the user flows described in the video descriptions.
+
+4. **Prepare a Web Specification Document**:
+   - Create a comprehensive Web Specification Document that includes the following sections:
+     - **Introduction**: Summarize the web project’s objective, scope, and purpose of the specification document.
+     - **Web Objectives**: Outline the key goals of the website (e.g., drive conversions, provide information, enhance user engagement).
+     - **Layout Specifications**:
+       - Describe the overall layout structure (e.g., single-page, multi-page, responsive grid).
+       - Detail specific layout patterns identified in the analyses (e.g., hero section, sidebar, card-based design).
+       - Specify responsive design considerations (e.g., mobile, tablet, desktop breakpoints).
+     - **Component Specifications**:
+       - List and describe key UI components (e.g., navigation menus, buttons, forms, modals).
+       - Include details on component behavior (e.g., hover states, animations, interactivity).
+       - Note any reusable components or design system patterns.
+     - **Feature Specifications**:
+       - Detail the core functionalities and features (e.g., search functionality, user login, content filtering).
+       - Link features to specific UI elements or components identified in the analyses.
+     - **Content Specifications**:
+       - Outline the types of content displayed (e.g., text, images, videos, dynamic data).
+       - Specify content hierarchy, typography, and visual styling based on the analyses.
+     - **Data Requirements**:
+       - List data inputs, outputs, and storage needs (e.g., form submissions, API calls, database integration).
+       - Include structured data points extracted from the web content (e.g., form fields, metadata).
+     - **Non-Functional Requirements**:
+       - Specify requirements for performance (e.g., page load times), accessibility (e.g., WCAG compliance), SEO, and security (e.g., HTTPS, data validation).
+     - **Assumptions**:
+       - Document any assumptions made due to gaps in the provided materials (e.g., missing details on backend integration, unclear component behavior).
+     - **Constraints**:
+       - Note any limitations or risks inferred from the analyses (e.g., browser compatibility, scalability concerns).
+     - **Stakeholder Considerations**:
+       - Identify potential stakeholders (e.g., end-users, content editors, developers) and their needs based on the web project’s purpose.
+   - Ensure the specification is clear, structured, and actionable, with traceability to the provided materials.
+
+5. **Provide a Summarized Report**:
+   - Create a concise report (1-2 pages) summarizing your findings and recommendations, including:
+     - A high-level overview of the web project objective and alignment with the provided materials.
+     - Key strengths and weaknesses of the web content analyses and video descriptions.
+     - Critical findings from the Web Specification Document, such as key layouts, components, features, or gaps.
+     - Recommendations for next steps, such as areas needing further clarification, additional stakeholder input, or validation of assumptions.
+     - Highlight any risks or challenges that could impact the web project’s success (e.g., accessibility issues, performance bottlenecks).
+
+6. **Guidelines**:
+   - Maintain a professional tone and structure in both the Web Specification Document and summarized report.
+   - Use clear, concise language to ensure accessibility to both technical and non-technical stakeholders.
+   - Organize the specification with headings, subheadings, and numbered lists for readability.
+   - Explicitly link findings to the provided materials (e.g., “Based on the analysis of the homepage screenshot…”).
+   - If critical information is missing, make reasonable assumptions and clearly label them as such in the specification and report.
+   - Avoid speculative features or requirements not supported by the provided materials.
+   - Consider modern web standards (e.g., HTML5, CSS3, responsive design) when specifying layouts and components.
+
+### Deliverables:
+- A complete Web Specification Document capturing the layouts, components, features, content, data requirements, assumptions, and other relevant details.
+- A summarized report highlighting key findings, recommendations, and next steps.
+
+Proceed with the review and produce the requested deliverables based on the provided materials.
+`
+
+             },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return a markdown formated document with clear headings, sections and subsections.' },
+          ],
+          description: 'Analyzes the purpose and functionality of web components',
+          model: 'gemini-1.5-flash',
+          category: 'Web Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+
+
+
       ],
+      data:[
+
+
+
+        {
+          name: 'DataStructureExtractor',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 
+              
+`
+Analyze the provided image of structured data (Excel, JSON, or CSV) to extract and describe its schema and structure in detail. Include the following:
+Data Format Identification: Specify the format of the data (e.g., Excel spreadsheet, JSON object/array, CSV file).
+Schema Overview:
+For Excel: List all column headers, their positions (e.g., column A, B), and any hierarchical structure (e.g., multiple sheets, merged cells).
+For JSON: Identify the keys, nested objects, arrays, and their hierarchical relationships.
+For CSV: List all column headers and their order.
+Field Details:
+Enumerate each field/column/key, including its name and location (e.g., column index, JSON path).
+Note any apparent primary or foreign keys based on naming conventions (e.g., "ID", "CustomerID") or unique values.
+Sample Data: Provide examples of data values for each field (e.g., first few rows or entries) to illustrate the content.
+Structural Observations:
+Highlight any structural complexities (e.g., nested JSON arrays, multi-sheet Excel files, quoted CSV fields).
+Note any inconsistencies (e.g., missing headers, irregular row lengths).
+Normalization Considerations: Suggest how the data could be normalized into relational tables (e.g., splitting nested JSON into separate tables). Ensure the description is precise, grounded in the image content, and structured for inclusion in a SQL Server data specification, avoiding assumptions not supported by the image.
+`
+
+             },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a schema field containing the extracted data structure, including fields, format, sample data, and normalization suggestions.' },
+          ],
+          description: 'Analyzes the data structures',
+          model: 'gemini-1.5-flash',
+          category: 'Data Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+
+
+        
+
+        {
+          name: 'DataTypeAnalyzer',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 
+              
+`
+Analyze the provided image of structured data (Excel, JSON, or CSV) to determine the data types, constraints, and validation rules for each field or column. Provide a detailed breakdown of the following:
+Data Types:
+Infer the appropriate SQL Server data type for each field (e.g., INT, VARCHAR, DATE, DECIMAL) based on sample data values.
+Specify the precision or length where applicable (e.g., VARCHAR(50), DECIMAL(10,2)).
+Constraints:
+Identify potential primary keys, foreign keys, or unique constraints based on naming conventions or data patterns (e.g., "OrderID" with unique integers).
+Note any fields that appear nullable or non-nullable based on the presence or absence of data.
+Suggest default values or check constraints where appropriate (e.g., "Status" with values like "Active"/"Inactive").
+Validation Rules:
+Infer validation requirements (e.g., email format for fields like "Email", date ranges for "OrderDate").
+Highlight any patterns (e.g., fixed-length codes, enumerated values like "M/F" for gender).
+Data Quality Observations:
+Note any data quality issues (e.g., inconsistent date formats, missing values, non-standardized text).
+Suggest data cleansing or transformation steps (e.g., trimming whitespace, standardizing case).
+SQL Server Compatibility:
+Ensure recommended data types and constraints are compatible with SQL Server (e.g., avoiding unsupported types, considering collation for text fields). Ensure the analysis is evidence-based, avoids speculative assumptions, and is structured for inclusion in a SQL Server data specification
+`
+
+             },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return JSON with a schema field containing the extracted data structure, including fields, format, sample data, and normalization suggestions.' },
+          ],
+          description: 'Analyzes the data type specifications',
+          model: 'gemini-1.5-flash',
+          category: 'Data Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+
+
+        {
+          name: 'DatabaseAdministrator',
+          userPrompts: [
+            { id: uuidv4(), type: 'text', content: 
+              
+`
+You are a senior Database Administrator responsible for designing a SQL Server database based on the analyses of structured data (Excel, JSON, or CSV) provided by the following Agents:
+
+
+
+
+
+DataStructureExtractor: Provides the schema, including fields, columns, or keys, their structure (e.g., column headers, JSON paths), sample data, and normalization suggestions.
+
+
+
+DataTypeAnalyzer: Specifies data types, constraints (e.g., primary keys, foreign keys, nullable fields), validation rules, and data quality observations.
+
+
+
+DataPurposeEvaluator: Describes the business purpose, field-specific roles, database role (e.g., transactional, reference), usage scenarios, and relationships.
+
+Your task is to consolidate these outputs into a complete plan for creating a SQL Server database. Provide a detailed implementation plan and generate all necessary SQL CREATE statements. Include the following:
+
+
+
+
+
+Database Design Overview:
+
+
+
+
+
+Summarize the data source (Excel, JSON, CSV), its business purpose, and the intended database role (e.g., transactional, analytical).
+
+
+
+Outline the normalized table structure based on the schema and normalization suggestions from DataStructureExtractor.
+
+
+
+Identify the target SQL Server version (assume SQL Server 2022 unless otherwise specified) and any compatibility considerations.
+
+
+
+Table Structures:
+
+
+
+
+
+Define each table, including:
+
+
+
+
+
+Table name (derived from the business purpose or schema, e.g., Customers, Orders).
+
+
+
+Columns, their SQL Server data types, and lengths/precision (e.g., VARCHAR(50), DECIMAL(10,2)), based on DataTypeAnalyzer.
+
+
+
+Constraints, including primary keys, foreign keys, unique constraints, and check constraints, based on DataTypeAnalyzer.
+
+
+
+Nullable or non-nullable fields, default values, and validation rules.
+
+
+
+Map complex structures (e.g., nested JSON arrays, multi-sheet Excel files) to normalized tables, ensuring relational integrity.
+
+
+
+Include any additional tables suggested by DataPurposeEvaluator for supporting business workflows (e.g., audit logs, reference tables).
+
+
+
+SQL CREATE Statements:
+
+
+
+
+
+Generate complete CREATE TABLE statements for all tables, including:
+
+
+
+
+
+Column definitions with data types and constraints.
+
+
+
+Primary key and foreign key constraints (with REFERENCES clauses).
+
+
+
+Unique constraints, check constraints, and default values where applicable.
+
+
+
+Generate CREATE INDEX statements for performance optimization (e.g., indexes on frequently queried columns like CustomerID).
+
+
+
+Include CREATE DATABASE statement if a new database is required, with appropriate settings (e.g., collation, filegroup).
+
+
+
+Ensure syntax is compatible with SQL Server 2022 and follows best practices (e.g., explicit constraint names, proper collation).
+
+
+
+Relationships and Constraints:
+
+
+
+
+
+Define all relationships between tables based on primary and foreign keys identified by DataTypeAnalyzer and DataPurposeEvaluator.
+
+
+
+Specify referential integrity actions (e.g., ON DELETE CASCADE, ON UPDATE NO ACTION) where appropriate.
+
+
+
+Highlight any inferred relationships not explicitly defined in the analyses (e.g., linking OrderID across tables) and label them as assumptions.
+
+
+
+Implementation Plan:
+
+
+
+
+
+Provide a step-by-step plan for implementing the database, including:
+
+
+
+
+
+Database Creation: Steps to create the database and configure settings (e.g., collation, recovery model).
+
+
+
+Table Creation: Order of table creation to respect foreign key dependencies.
+
+
+
+Data Loading: Recommended tools and methods for loading data (e.g., SSIS for CSV, OPENJSON for JSON, SQL Server Import Wizard for Excel), incorporating data cleansing steps from DataTypeAnalyzer.
+
+
+
+Performance Optimization: Suggestions for indexes, partitioning, or statistics based on usage scenarios from DataPurposeEvaluator.
+
+
+
+Security Considerations: Basic security recommendations (e.g., schema permissions, encrypted columns for sensitive data like emails).
+
+
+
+Testing and Validation: Steps to verify data integrity and constraint enforcement post-loading.
+
+
+
+Address data quality issues noted by DataTypeAnalyzer (e.g., handling missing values, standardizing formats).
+
+
+
+Suggest maintenance tasks (e.g., regular index rebuilding, backup schedules).
+
+
+
+Assumptions and Risks:
+
+
+
+
+
+Document any assumptions made due to gaps in the provided analyses (e.g., unclear foreign key relationships, missing data volume estimates).
+
+
+
+Highlight potential risks (e.g., performance bottlenecks for large datasets, data quality issues affecting constraints) and mitigation strategies.
+
+
+
+Summarized Report:
+
+
+
+
+
+Provide a concise report (1-2 pages) summarizing:
+
+
+
+
+
+The database design, including table count and key relationships.
+
+
+
+Key findings from the analyses and how they informed the design.
+
+
+
+Critical implementation steps and data loading recommendations.
+
+
+
+Risks, assumptions, and next steps (e.g., stakeholder validation, performance testing).
+
+Guidelines:
+
+
+
+
+
+Ensure all SQL statements are syntactically correct, executable in SQL Server 2022, and follow naming conventions (e.g., PK_TableName, FK_TableName_Column).
+
+
+
+Use clear, consistent terminology suitable for database administrators and developers.
+
+
+
+Structure the output for clarity, with separate sections for the design overview, SQL statements, implementation plan, and report.
+
+
+
+Ground all decisions in the provided analyses, linking to specific outputs (e.g., “Based on DataTypeAnalyzer’s VARCHAR(100) recommendation for CustomerName…”).
+
+
+
+Label assumptions clearly and avoid speculative designs not supported by the analyses.
+
+
+
+Optimize for performance and scalability, considering the business purpose and usage scenarios.
+
+
+
+Ensure the implementation plan is actionable, with tools and methods compatible with SQL Server.
+
+Deliverables:
+
+
+
+
+
+A complete Database Creation Plan including:
+
+
+
+
+
+Database design overview.
+
+
+
+Detailed table structures and relationships.
+
+
+
+SQL CREATE statements for the database, tables, and indexes.
+
+
+
+A step-by-step implementation plan for creation, data loading, and maintenance.
+
+
+
+Assumptions and risks.
+
+
+
+A Summarized Report highlighting the design, key decisions, and next steps.
+
+`
+
+             },
+          ],
+          systemPrompts: [
+            { id: uuidv4(), type: 'text', content: 'Return a complete markdown format specification' },
+          ],
+          description: 'Analyzes the data type specifications',
+          model: 'gemini-1.5-flash',
+          category: 'Data Analysis',
+          placeholderImage: Math.floor(Math.random() * 10) + 1,
+        },
+
+
+
+      ]
     };
 
     const categories = Vue.computed(() => Object.keys(defaultAgentCategories).map(key => ({
