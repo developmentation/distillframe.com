@@ -45,13 +45,13 @@ export default {
           <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 class="text-4xl sm:text-5xl font-extrabold mb-4 font-sans">DistillFrame.com</h2>
             <p class="text-lg sm:text-xl mb-8 text-gray-100 font-light">
-              Analyze video frames with AI-powered insights, extract structured data, and generate business reports in real time.
+              Analyze video frames and images with AI-powered insights, extract structured data, and generate business reports in real time.
             </p>
             <button @click="activeTab = 'Agents'" class="m-2 px-6 py-3 bg-white dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-gray-700 text-blue-600 hover:bg-gray-100 rounded-lg font-semibold transition-all shadow-md">
               Create an AI Agent
             </button>
-            <button @click="activeTab = 'Videos'" class="px-6 py-3 bg-white dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-gray-700 text-blue-600 hover:bg-gray-100 rounded-lg font-semibold transition-all shadow-md">
-              Start Analyzing Videos
+            <button @click="activeTab = 'Media'" class="px-6 py-3 bg-white dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-gray-700 text-blue-600 hover:bg-gray-100 rounded-lg font-semibold transition-all shadow-md">
+              Start Analyzing Media
             </button>
           </div>
         </header>
@@ -74,13 +74,13 @@ export default {
             <div class="md:w-1/2">
               <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Video Frame Analysis</h3>
               <p class="text-gray-600 dark:text-gray-300 mb-4">
-                Upload videos, scrub through frames, and extract specific moments for detailed analysis. Use the browser’s Canvas API to capture frames as images without storing bulky video files.
+                Upload videos and images, scrub through frames, and extract specific moments for detailed analysis. Use the browser’s Canvas API to capture frames as images without storing bulky video files.
               </p>
               <p class="text-gray-600 dark:text-gray-300">
                 Frames are stored as entities with metadata, timestamps, and base64 images, enabling precise analysis and easy session reloading. Perfect for dissecting presentations, demos, or training videos.
               </p>
             </div>
-            <div class="md:w-1/2">
+            <div class="md:w-1/2 w-full">
               <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video1Img + ')' }"></div>
             </div>
           </div>
@@ -98,8 +98,8 @@ export default {
                 Each frame is processed by multiple agents, with results stored as JSON for easy access. Edit agent prompts to tailor analysis to your needs, from technical breakdowns to strategic insights.
               </p>
             </div>
-            <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video2Img + ')' }"></div>
+            <div class="md:w-1/2  w-full">
+              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-none" :style="{ backgroundImage: 'url(' + video2Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -116,8 +116,8 @@ export default {
                 Download reports alongside frame JSONs and optional images, ensuring lightweight exports. Ideal for presentations, stakeholder reviews, or strategic planning.
               </p>
             </div>
-            <div class="md:w-1/2">
-              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-hidden" :style="{ backgroundImage: 'url(' + video3Img + ')' }"></div>
+            <div class="md:w-1/2  w-full">
+              <div class="h-48 sm:h-64 rounded-lg bg-contain bg-center  overflow-none" :style="{ backgroundImage: 'url(' + video3Img + ')' }"></div>
             </div>
           </div>
         </section>
@@ -141,14 +141,14 @@ export default {
         <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center bg-gray-50 dark:bg-gray-900">
           <h3 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Ready to Analyze?</h3>
           <p class="text-gray-600 dark:text-gray-300 mb-6">
-            Create your first AI agent or start analyzing videos now to unlock powerful insights.
+            Create your first AI agent or start analyzing media now to unlock powerful insights.
           </p>
           <div class="flex justify-center gap-4">
             <button @click="activeTab = 'Agents'" class="px-6 py-3 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-semibold transition-all">
               Create an Agent
             </button>
-            <button @click="activeTab = 'Videos'" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 text-gray-900 hover:bg-gray-300 rounded-lg font-semibold transition-all">
-              Analyze Videos
+            <button @click="activeTab = 'Media'" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 text-gray-900 hover:bg-gray-300 rounded-lg font-semibold transition-all">
+              Analyze Media
             </button>
           </div>
         </section>
@@ -157,7 +157,7 @@ export default {
       <!-- Other Tab Content -->
       <main v-else class="max-w-8xl mx-auto px-4 py-2">
         <agents v-show="activeTab === 'Agents'" :darkMode="darkMode" />
-        <videos v-show="activeTab === 'Videos'" :darkMode="darkMode" />
+        <videos v-show="activeTab === 'Media'" :darkMode="darkMode" />
       </main>
     </div>
   `,
@@ -174,7 +174,7 @@ export default {
     const video4Img = Vue.computed(() => `/assets/landing4.jpg`);
 
     const activeTab = Vue.ref('Landing');
-    const tabs = ['Landing', 'Agents', 'Videos'];
+    const tabs = ['Landing', 'Agents', 'Media'];
     const sessionReady = Vue.ref(false);
     const errorMessage = Vue.ref('');
 

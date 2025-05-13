@@ -1,10 +1,14 @@
-import { useVideoProcessor } from '../composables/useVideoProcessor.js';
+import { useMediaProcessor } from '../composables/useMediaProcessor.js';
 
 export default {
-  name: 'VideoPlayer',
+  name: 'MediaPlayer',
   props: {
-    videoFile: {
+    mediaFile: {
       type: String,
+      required: true,
+    },
+    media: {
+      type: Object,
       required: true,
     },
     timestamps: {
@@ -19,13 +23,23 @@ export default {
   template: `
     <div class="flex flex-col gap-4">
       <video
-        ref="videoElement"
-        :src="videoFile"
+        v-if="isVideo"
+        ref="mediaElement"
+        :src="mediaFile"
         class="w-full rounded-lg shadow-md"
         @timeupdate="updateTime"
         @loadedmetadata="updateDuration"
+        @error="handleMediaError"
       ></video>
-      <div class="flex gap-4 items-center">
+      <img
+        v-else
+        ref="mediaElement"
+        :src="mediaFile"
+        class="w-full rounded-lg shadow-md object-contain"
+        @load="updateImage"
+        @error="handleMediaError"
+      />
+      <div v-if="isVideo" class="flex gap-4 items-center">
         <button
           @click="togglePlay"
           class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
@@ -42,7 +56,7 @@ export default {
         />
         <span class="text-gray-700 dark:text-gray-300">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
       </div>
-      <div class="relative">
+      <div v-if="isVideo" class="relative">
         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
           <div
             v-for="ts in timestamps"
@@ -61,31 +75,51 @@ export default {
     </div>
   `,
   setup(props, { emit }) {
-    const { extractFrame } = useVideoProcessor();
-    const videoElement = Vue.ref(null);
+    const { extractFrame } = useMediaProcessor();
+    const mediaElement = Vue.ref(null);
     const isPlaying = Vue.ref(false);
     const currentTime = Vue.ref(0);
     const duration = Vue.ref(0);
 
+    const isVideo = Vue.computed(() => props.media?.data?.type === 'video');
+
     function togglePlay() {
+      if (!isVideo.value) return;
       if (isPlaying.value) {
-        videoElement.value.pause();
+        mediaElement.value.pause();
       } else {
-        videoElement.value.play();
+        mediaElement.value.play();
       }
       isPlaying.value = !isPlaying.value;
     }
 
     function updateTime() {
-      currentTime.value = videoElement.value.currentTime;
+      if (!isVideo.value) return;
+      currentTime.value = mediaElement.value.currentTime;
+      // console.log('Time updated:', currentTime.value);
     }
 
     function updateDuration() {
-      duration.value = videoElement.value.duration;
+      if (!isVideo.value) return;
+      duration.value = mediaElement.value.duration;
+      console.log('Duration loaded:', duration.value);
+    }
+
+    function updateImage() {
+      if (isVideo.value) return;
+      duration.value = 0;
+      currentTime.value = 0;
+      console.log('Image loaded');
     }
 
     function seekVideo() {
-      videoElement.value.currentTime = currentTime.value;
+      if (!isVideo.value) return;
+      // console.log('Seeking to:', currentTime.value);
+      mediaElement.value.currentTime = currentTime.value;
+    }
+
+    function handleMediaError(e) {
+      console.error('Media element error:', e);
     }
 
     function formatTime(seconds) {
@@ -95,24 +129,29 @@ export default {
     }
 
     async function captureFrame() {
-      const imageData = await extractFrame(videoElement.value, currentTime.value);
+      const imageData = await extractFrame(mediaElement.value, currentTime.value, props.media.data.type);
       emit('extract-frame', { timestamp: currentTime.value, imageData });
     }
 
     Vue.onMounted(() => {
-      videoElement.value.addEventListener('play', () => { isPlaying.value = true; });
-      videoElement.value.addEventListener('pause', () => { isPlaying.value = false; });
+      if (isVideo.value) {
+        mediaElement.value.addEventListener('play', () => { isPlaying.value = true; });
+        mediaElement.value.addEventListener('pause', () => { isPlaying.value = false; });
+      }
     });
 
     return {
-      videoElement,
+      mediaElement,
       isPlaying,
       currentTime,
       duration,
+      isVideo,
       togglePlay,
       updateTime,
       updateDuration,
+      updateImage,
       seekVideo,
+      handleMediaError,
       formatTime,
       captureFrame,
     };

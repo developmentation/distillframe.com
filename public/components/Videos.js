@@ -1,9 +1,9 @@
-import VideoPlayer from './VideoPlayer.js';
+import MediaPlayer from './MediaPlayer.js';
 import FrameGallery from './FrameGallery.js';
 import JsonViewer from './JsonViewer.js';
 import AgentSelector from './AgentSelector.js';
 import DownloadButton from './DownloadButton.js';
-import VideoList from './VideoList.js';
+import MediaList from './MediaList.js';
 import BusinessAnalysisList from './BusinessAnalysisList.js';
 import BusinessAnalysisViewer from './BusinessAnalysisViewer.js';
 import { useGlobal } from '../composables/useGlobal.js';
@@ -15,7 +15,7 @@ import eventBus from '../composables/eventBus.js';
 
 export default {
   name: 'Videos',
-  components: { VideoPlayer, FrameGallery, JsonViewer, AgentSelector, DownloadButton, VideoList, BusinessAnalysisList, BusinessAnalysisViewer },
+  components: { MediaPlayer, FrameGallery, JsonViewer, AgentSelector, DownloadButton, MediaList, BusinessAnalysisList, BusinessAnalysisViewer },
   props: {
     darkMode: {
       type: Boolean,
@@ -24,16 +24,16 @@ export default {
   },
   template: `
     <div class="flex flex-col h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 p-4 gap-4">
-      <!-- First Row: Videos in Channel and Project Prompt (50%/50% in desktop, responsive) -->
+      <!-- First Row: Media in Channel and Project Prompt (50%/50% in desktop, responsive) -->
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-          <video-list
-            :videos="entities.video"
-            @select-video="selectVideo"
-            @reattach-video="reattachVideo"
-            @remove-video="removeVideo"
-            @edit-video="openEditVideoModal"
-            @upload-video="handleVideoUpload"
+          <media-list
+            :media="media"
+            @select-media="selectMedia"
+            @reattach-media="reattachMedia"
+            @remove-media="removeMedia"
+            @edit-media="openEditMediaModal"
+            @upload-media="handleMediaUpload"
             :darkMode="darkMode"
           />
         </div>
@@ -42,20 +42,21 @@ export default {
           <textarea
             v-model="projectPrompt"
             class="w-full h-32 p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none transition-all"
-            placeholder="Describe the intent of this initiative (e.g., extract meaningful insights from videos for business analysis)..."
+            placeholder="Describe the intent of this initiative (e.g., extract meaningful insights from videos or images for business analysis)..."
           ></textarea>
         </div>
       </div>
 
-      <!-- Second Row: Video Display and Agent Selector (50%/50% in desktop, responsive) -->
+      <!-- Second Row: Media Display and Agent Selector (50%/50% in desktop, responsive) -->
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-          <div v-if="!videoUrl" class="flex flex-col gap-4">
-            <p class="text-center text-gray-500 dark:text-gray-400">Select or upload a video to start analyzing.</p>
+          <div v-if="!mediaUrl" class="flex flex-col gap-4">
+            <p class="text-center text-gray-500 dark:text-gray-400">Select or upload a video or image to start analyzing.</p>
           </div>
-          <video-player
+          <media-player
             v-else
-            :videoFile="videoUrl"
+            :mediaFile="mediaUrl"
+            :media="selectedMedia"
             :timestamps="frameTimestamps"
             @extract-frame="handleExtractFrame"
             :darkMode="darkMode"
@@ -124,39 +125,39 @@ export default {
         </div>
       </div>
 
-      <!-- Edit Video Modal -->
+      <!-- Edit Media Modal -->
       <div
         v-if="showEditModal"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
       >
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Video</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Media</h2>
           <div class="flex flex-col gap-4">
             <div>
-              <label class="text-gray-700 dark:text-gray-300 block mb-1">Video Name</label>
+              <label class="text-gray-700 dark:text-gray-300 block mb-1">Media Name</label>
               <input
-                v-model="editVideoData.name"
+                v-model="editMediaData.name"
                 class="w-full p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
-                placeholder="Enter video name"
+                placeholder="Enter media name"
               />
             </div>
             <div>
-              <label class="text-gray-700 dark:text-gray-300 block mb-1">Video Description</label>
+              <label class="text-gray-700 dark:text-gray-300 block mb-1">Media Description</label>
               <textarea
-                v-model="editVideoData.description"
+                v-model="editMediaData.description"
                 class="w-full h-24 p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
-                placeholder="Enter video description"
+                placeholder="Enter media description"
               ></textarea>
             </div>
             <div class="flex justify-end gap-2">
               <button
-                @click="closeEditVideoModal"
+                @click="closeEditMediaModal"
                 class="py-2 px-4 bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 hover:bg-gray-400 text-gray-900 dark:text-white rounded-lg"
               >
                 Cancel
               </button>
               <button
-                @click="saveVideoEdits"
+                @click="saveMediaEdits"
                 class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 Save
@@ -174,13 +175,15 @@ export default {
     const { analyzeFrame, generateText } = useGeminiApi();
     const { generateAnalysis } = useBusinessAnalyst();
 
-    const video = Vue.ref(null);
-    const videoUrl = Vue.ref(null);
+    const media = Vue.computed(() => entities.value.media);
+    const selectedMedia = Vue.ref(null);
+    const mediaUrl = Vue.ref(null);
+    const mediaFiles = Vue.ref({}); // Local storage for raw File objects, keyed by media UUID
     const analyzingFrames = Vue.ref(new Set());
     const frames = Vue.computed(() => {
-      if (!video.value) return [];
-      const videoFrames = entities.value.image.filter(img => img.data.videoUuid === video.value.id);
-      return videoFrames.map(frame => ({
+      if (!selectedMedia.value) return [];
+      const mediaFrames = entities.value.image.filter(img => img.data.mediaUuid === selectedMedia.value.id);
+      return mediaFrames.map(frame => ({
         ...frame,
         isAnalyzing: analyzingFrames.value.has(frame.id),
       }));
@@ -194,7 +197,7 @@ export default {
     const selectedAgents = Vue.ref([]);
     const projectPrompt = Vue.ref('');
     const showEditModal = Vue.ref(false);
-    const editVideoData = Vue.ref({ id: null, name: '', description: '' });
+    const editMediaData = Vue.ref({ id: null, name: '', description: '', type: '' });
 
     Vue.onMounted(() => {
       eventBus.$on('sync-history-data', () => {
@@ -207,49 +210,68 @@ export default {
 
     Vue.onUnmounted(() => {
       eventBus.$off('sync-history-data');
+      // Clean up blob URLs to prevent memory leaks
+      Object.values(mediaFiles.value).forEach(file => {
+        if (mediaUrl.value && mediaUrl.value.startsWith('blob:')) {
+          URL.revokeObjectURL(mediaUrl.value);
+        }
+      });
+      mediaFiles.value = {};
     });
 
     function loadChannelData() {
       const channel = channelName.value;
       if (!channel) return;
 
-      const channelFrames = entities.value.image.filter(img => img.channel === channel);
+      const channelFrames = entities.value.image.filter(img => img.channel === channel && img.data.mediaUuid);
       if (channelFrames.length > 0) {
-        const videoId = channelFrames[0].data.videoUuid;
-        const videoEntity = entities.value.video.find(v => v.id === videoId && v.channel === channel);
-        if (videoEntity) {
-          video.value = videoEntity;
+        const mediaId = channelFrames[0].data.mediaUuid;
+        const mediaEntity = entities.value.media.find(m => m.id === mediaId && m.channel === channel);
+        if (mediaEntity) {
+          selectedMedia.value = mediaEntity;
+          // Attempt to load the media file if it exists in local storage
+          const file = mediaFiles.value[mediaEntity.id];
+          mediaUrl.value = file ? URL.createObjectURL(file) : null;
         }
 
-        const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.videoUuid === videoId && ba.channel === channel);
+        const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.mediaUuid === mediaId && ba.channel === channel);
         if (channelAnalysis) {
           selectBusinessAnalysis(channelAnalysis.id);
         }
       }
     }
 
-    async function handleVideoUpload(file) {
-      console.log('handleVideoUpload called with file:', file);
-      if (!file) return;
+    async function handleMediaUpload(files) {
+      console.log('handleMediaUpload called with files:', files);
+      if (!files || files.length === 0) return;
 
-      const videoId = uuidv4();
-      const videoData = {
-        id: videoId,
-        name: file.name,
-        description: '',
-        fileSize: file.size,
-        mimeType: file.type,
-        channel: channelName.value,
-      };
-      console.log('Adding video to entities with videoData:', videoData);
-      const addedVideoId = addEntity('video', videoData);
-      console.log('Added video ID:', addedVideoId);
-      console.log('Updated entities.video:', entities.value.video);
+      let lastMediaEntity = null;
+      for (const file of files) {
+        const mediaId = uuidv4();
+        const mediaData = {
+          name: file.name,
+          description: '',
+          fileSize: file.size,
+          mimeType: file.type,
+          type: file.type.startsWith('video/') ? 'video' : 'image',
+        };
+        console.log(`Adding media to entities with mediaData for file ${file.name}:`, mediaData);
+        const addedMediaId = addEntity('media', mediaData, mediaId, channelName.value);
+        console.log(`Added media ID for file ${file.name}:`, addedMediaId);
 
-      const videoEntity = entities.value.video.find(v => v.id === addedVideoId);
-      console.log('Found videoEntity:', videoEntity);
-      video.value = videoEntity;
-      videoUrl.value = URL.createObjectURL(file);
+        const mediaEntity = entities.value.media.find(m => m.id === addedMediaId);
+        console.log(`Found mediaEntity for file ${file.name}:`, mediaEntity);
+        // Store the raw File object locally
+        mediaFiles.value[addedMediaId] = file;
+        lastMediaEntity = mediaEntity;
+      }
+
+      // Select the last uploaded media item
+      if (lastMediaEntity) {
+        selectedMedia.value = lastMediaEntity;
+        mediaUrl.value = URL.createObjectURL(files[files.length - 1]);
+        console.log('Selected last uploaded media:', selectedMedia.value);
+      }
 
       selectedFrame.value = null;
       businessAnalysis.value = null;
@@ -257,11 +279,13 @@ export default {
       analyzingFrames.value.clear();
     }
 
-    function removeVideo(videoEntity) {
-      removeEntity('video', videoEntity.id);
-      if (video.value?.id === videoEntity.id) {
-        video.value = null;
-        videoUrl.value = null;
+    function removeMedia(mediaEntity) {
+      removeEntity('media', mediaEntity.id);
+      // Remove the file from local storage
+      delete mediaFiles.value[mediaEntity.id];
+      if (selectedMedia.value?.id === mediaEntity.id) {
+        selectedMedia.value = null;
+        mediaUrl.value = null;
         selectedFrame.value = null;
         businessAnalysis.value = null;
         selectedBusinessAnalysis.value = null;
@@ -269,19 +293,21 @@ export default {
       }
     }
 
-    function reattachVideo(videoEntity, file) {
-      if (videoEntity.id === video.value?.id) {
-        videoUrl.value = URL.createObjectURL(file);
-      }
+    function reattachMedia(mediaEntity, file) {
+      selectMedia(mediaEntity);
+      mediaFiles.value[mediaEntity.id] = file;
+      mediaUrl.value = URL.createObjectURL(file);
     }
 
-    function selectVideo(videoEntity) {
-      video.value = videoEntity;
-      videoUrl.value = null;
+    function selectMedia(mediaEntity) {
+      selectedMedia.value = mediaEntity;
+      // Load the media file from local storage if it exists
+      const file = mediaFiles.value[mediaEntity.id];
+      mediaUrl.value = file ? URL.createObjectURL(file) : null;
       selectedFrame.value = null;
       businessAnalysis.value = null;
 
-      const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.videoUuid === videoEntity.id && ba.channel === channelName.value);
+      const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.mediaUuid === mediaEntity.id && ba.channel === channelName.value);
       if (channelAnalysis) {
         selectBusinessAnalysis(channelAnalysis.id);
       } else {
@@ -289,32 +315,37 @@ export default {
       }
     }
 
-    function openEditVideoModal(videoEntity) {
-      editVideoData.value = {
-        id: videoEntity.id,
-        name: videoEntity.data.name,
-        description: videoEntity.data.description || '',
+    function openEditMediaModal(mediaEntity) {
+      editMediaData.value = {
+        id: mediaEntity.id,
+        name: mediaEntity.data.name,
+        description: mediaEntity.data.description || '',
+        type: mediaEntity.data.type,
       };
       showEditModal.value = true;
     }
 
-    function closeEditVideoModal() {
+    function closeEditMediaModal() {
       showEditModal.value = false;
-      editVideoData.value = { id: null, name: '', description: '' };
+      editMediaData.value = { id: null, name: '', description: '', type: '' };
     }
 
-    function saveVideoEdits() {
-      if (editVideoData.value.id) {
-        const videoEntity = entities.value.video.find(v => v.id === editVideoData.value.id);
-        if (videoEntity) {
-          updateEntity('video', videoEntity.id, {
-            ...videoEntity.data,
-            name: editVideoData.value.name,
-            description: editVideoData.value.description,
-          });
+    function saveMediaEdits() {
+      if (editMediaData.value.id) {
+        const mediaEntity = entities.value.media.find(m => m.id === editMediaData.value.id);
+        if (mediaEntity) {
+          const updatedData = {
+            name: editMediaData.value.name,
+            description: editMediaData.value.description,
+            fileSize: mediaEntity.data.fileSize,
+            mimeType: mediaEntity.data.mimeType,
+            type: mediaEntity.data.type,
+          };
+          updateEntity('media', mediaEntity.id, updatedData);
+          selectedMedia.value = { ...mediaEntity, data: updatedData };
         }
       }
-      closeEditVideoModal();
+      closeEditMediaModal();
     }
 
     function selectBusinessAnalysis(analysisId) {
@@ -338,16 +369,16 @@ export default {
     }
 
     async function handleExtractFrame({ timestamp, imageData }) {
-      if (!video.value) return;
+      if (!selectedMedia.value) return;
 
       const sequence = frames.value.length + 1;
       const imageId = addEntity('image', {
-        videoUuid: video.value.id,
+        mediaUuid: selectedMedia.value.id,
         timestamp,
         sequence,
         imageData,
         analysis: [],
-      });
+      }, null, channelName.value);
 
       analyzingFrames.value.add(imageId);
       await processFrame(imageId, imageData, timestamp, sequence);
@@ -377,7 +408,7 @@ export default {
             { role: 'user', content: projectPrompt.value || 'No project prompt provided.' },
             {
               role: 'user',
-              content: `Video Name: ${video.value.data.name}\nVideo Description: ${video.value.data.description || 'No description provided.'}`,
+              content: `Media Name: ${selectedMedia.value.data.name}\nMedia Description: ${selectedMedia.value.data.description || 'No description provided.'}`,
             },
             {
               role: 'user',
@@ -396,7 +427,7 @@ export default {
       try {
         const results = await analyzeFrame(imageData, agentPrompts);
         updateEntity('image', imageId, {
-          videoUuid: video.value.id,
+          mediaUuid: selectedMedia.value.id,
           timestamp,
           sequence,
           imageData,
@@ -408,7 +439,7 @@ export default {
           response: { error: error.message || 'Batch analysis failed' },
         }));
         updateEntity('image', imageId, {
-          videoUuid: video.value.id,
+          mediaUuid: selectedMedia.value.id,
           timestamp,
           sequence,
           imageData,
@@ -464,7 +495,7 @@ export default {
           if (text) {
             messageHistory.push({
               role: 'user',
-              content: `Frame Analysis (Video UUID: ${image.data.videoUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+              content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
             });
           }
         });
@@ -482,9 +513,9 @@ export default {
         const markdown = await generateText(promptData);
         businessAnalysis.value = markdown;
         const newAnalysisId = addEntity('businessAnalysis', {
-          videoUuid: video.value ? video.value.id : entities.value.image[0]?.data.videoUuid,
+          mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value.image[0]?.data.mediaUuid,
           markdown,
-        });
+        }, null, channelName.value);
         selectBusinessAnalysis(newAnalysisId);
       } catch (error) {
         businessAnalysis.value = `Error: Unable to generate business analysis - ${error.message}`;
@@ -497,8 +528,9 @@ export default {
     }
 
     return {
-      video,
-      videoUrl,
+      media,
+      selectedMedia,
+      mediaUrl,
       entities,
       frames,
       frameTimestamps,
@@ -509,14 +541,14 @@ export default {
       selectedAgents,
       projectPrompt,
       showEditModal,
-      editVideoData,
-      handleVideoUpload,
-      reattachVideo,
-      selectVideo,
-      removeVideo,
-      openEditVideoModal,
-      closeEditVideoModal,
-      saveVideoEdits,
+      editMediaData,
+      handleMediaUpload,
+      reattachMedia,
+      selectMedia,
+      removeMedia,
+      openEditMediaModal,
+      closeEditMediaModal,
+      saveMediaEdits,
       handleExtractFrame,
       redoFrame,
       deleteFrame,

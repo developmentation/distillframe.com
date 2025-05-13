@@ -14,7 +14,11 @@ export default {
     <div class="p-6">
       <!-- Header -->
       <div class="mb-8 flex justify-between items-center">
-        <h2 class="text-2xl font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Manage AI Agents</h2>
+        <h2 class="text-2xl font-semibold w-full" :class="darkMode ? 'text-white' : 'text-gray-900'">Manage AI Agents</h2>
+
+        </div>
+              <div class="mb-8 flex justify-between items-center">
+
         <div class="flex gap-4">
           <select
             v-model="selectedCategory"
