@@ -31,15 +31,28 @@ export default {
         @loadedmetadata="updateDuration"
         @error="handleMediaError"
       ></video>
+      <audio
+        v-else-if="isAudio"
+        ref="mediaElement"
+        :src="mediaFile"
+        class="w-full rounded-lg"
+        controls
+        @timeupdate="updateTime"
+        @loadedmetadata="updateDuration"
+        @error="handleMediaError"
+      ></audio>
       <img
-        v-else
+        v-else-if="isImage"
         ref="mediaElement"
         :src="mediaFile"
         class="w-full rounded-lg shadow-md object-contain"
         @load="updateImage"
         @error="handleMediaError"
       />
-      <div v-if="isVideo" class="flex gap-4 items-center">
+      <div v-else class="text-center text-gray-500 dark:text-gray-400">
+        Unsupported media type
+      </div>
+      <div v-if="isVideo || isAudio" class="flex gap-4 items-center">
         <button
           @click="togglePlay"
           class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
@@ -52,11 +65,11 @@ export default {
           :max="duration"
           step="0.1"
           class="flex-1"
-          @input="seekVideo"
+          @input="seekMedia"
         />
         <span class="text-gray-700 dark:text-gray-300">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
       </div>
-      <div v-if="isVideo" class="relative">
+      <div v-if="isVideo || isAudio" class="relative">
         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
           <div
             v-for="ts in timestamps"
@@ -66,7 +79,14 @@ export default {
           ></div>
         </div>
       </div>
+      <div v-if="isVideo || isAudio" class="mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <p class="text-sm" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+          <span v-if="currentTranscript">Transcription: {{ currentTranscript.speaker }}: {{ currentTranscript.text }}</span>
+          <span v-else>No transcription available at this timestamp.</span>
+        </p>
+      </div>
       <button
+        v-if="isVideo || isImage"
         @click="captureFrame"
         class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
       >
@@ -82,9 +102,19 @@ export default {
     const duration = Vue.ref(0);
 
     const isVideo = Vue.computed(() => props.media?.data?.type === 'video');
+    const isAudio = Vue.computed(() => props.media?.data?.type === 'audio');
+    const isImage = Vue.computed(() => props.media?.data?.type === 'image');
+
+    const currentTranscript = Vue.computed(() => {
+      if (!props.media?.data?.transcription?.segments) return null;
+      const segments = props.media.data.transcription.segments;
+      return segments.find(
+        segment => currentTime.value >= segment.start && currentTime.value <= segment.end
+      ) || null;
+    });
 
     function togglePlay() {
-      if (!isVideo.value) return;
+      if (!isVideo.value && !isAudio.value) return;
       if (isPlaying.value) {
         mediaElement.value.pause();
       } else {
@@ -94,27 +124,25 @@ export default {
     }
 
     function updateTime() {
-      if (!isVideo.value) return;
+      if (!isVideo.value && !isAudio.value) return;
       currentTime.value = mediaElement.value.currentTime;
-      // console.log('Time updated:', currentTime.value);
     }
 
     function updateDuration() {
-      if (!isVideo.value) return;
+      if (!isVideo.value && !isAudio.value) return;
       duration.value = mediaElement.value.duration;
       console.log('Duration loaded:', duration.value);
     }
 
     function updateImage() {
-      if (isVideo.value) return;
+      if (!isImage.value) return;
       duration.value = 0;
       currentTime.value = 0;
       console.log('Image loaded');
     }
 
-    function seekVideo() {
-      if (!isVideo.value) return;
-      // console.log('Seeking to:', currentTime.value);
+    function seekMedia() {
+      if (!isVideo.value && !isAudio.value) return;
       mediaElement.value.currentTime = currentTime.value;
     }
 
@@ -129,12 +157,13 @@ export default {
     }
 
     async function captureFrame() {
+      if (!isVideo.value && !isImage.value) return;
       const imageData = await extractFrame(mediaElement.value, currentTime.value, props.media.data.type);
       emit('extract-frame', { timestamp: currentTime.value, imageData });
     }
 
     Vue.onMounted(() => {
-      if (isVideo.value) {
+      if (isVideo.value || isAudio.value) {
         mediaElement.value.addEventListener('play', () => { isPlaying.value = true; });
         mediaElement.value.addEventListener('pause', () => { isPlaying.value = false; });
       }
@@ -146,11 +175,14 @@ export default {
       currentTime,
       duration,
       isVideo,
+      isAudio,
+      isImage,
+      currentTranscript,
       togglePlay,
       updateTime,
       updateDuration,
       updateImage,
-      seekVideo,
+      seekMedia,
       handleMediaError,
       formatTime,
       captureFrame,

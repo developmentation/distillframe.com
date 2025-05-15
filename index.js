@@ -32,6 +32,7 @@ app.use("/api/healthcheck", require("./routes/healthcheck")); // Healthcheck rou
 app.use("/api/models", require("./routes/models")); // Server side defined models
 
 app.use("/api/gemini", require("./routes/gemini")); // Server side defined models
+app.use("/api/transcription", require("./routes/transcription")); // Server side defined models
 
 
 // SPA Fallback: Serve `index.html` for any non-API routes

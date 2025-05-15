@@ -51,7 +51,7 @@ export default {
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <div v-if="!mediaUrl" class="flex flex-col gap-4">
-            <p class="text-center text-gray-500 dark:text-gray-400">Select or upload a video or image to start analyzing.</p>
+            <p class="text-center text-gray-500 dark:text-gray-400">Select or upload a video, image, or audio to start analyzing.</p>
           </div>
           <media-player
             v-else
@@ -175,14 +175,14 @@ export default {
     const { analyzeFrame, generateText } = useGeminiApi();
     const { generateAnalysis } = useBusinessAnalyst();
 
-    const media = Vue.computed(() => entities.value.media);
+    const media = Vue.computed(() => entities.value?.media || []);
     const selectedMedia = Vue.ref(null);
     const mediaUrl = Vue.ref(null);
     const mediaFiles = Vue.ref({}); // Local storage for raw File objects, keyed by media UUID
     const analyzingFrames = Vue.ref(new Set());
     const frames = Vue.computed(() => {
       if (!selectedMedia.value) return [];
-      const mediaFrames = entities.value.image.filter(img => img.data.mediaUuid === selectedMedia.value.id);
+      const mediaFrames = entities.value?.image?.filter(img => img.data.mediaUuid === selectedMedia.value.id) || [];
       return mediaFrames.map(frame => ({
         ...frame,
         isAnalyzing: analyzingFrames.value.has(frame.id),
@@ -203,13 +203,21 @@ export default {
       eventBus.$on('sync-history-data', () => {
         isHistorySynced.value = true;
         loadChannelData();
-        const channelEntity = entities.value.channel.find(c => c.id === channelName.value);
-        selectedAgents.value = entities.value.agents.map(agent => agent.id);
+        const channelEntity = entities.value?.channel?.find(c => c.id === channelName.value);
+        selectedAgents.value = entities.value?.agents?.map(agent => agent.id) || [];
+      });
+
+      // Listen for update-media events from MediaList
+      eventBus.$on('update-media', (mediaItem) => {
+        if (mediaItem?.id && mediaItem?.data) {
+          updateEntity('media', mediaItem.id, mediaItem.data);
+        }
       });
     });
 
     Vue.onUnmounted(() => {
       eventBus.$off('sync-history-data');
+      eventBus.$off('update-media');
       // Clean up blob URLs to prevent memory leaks
       Object.values(mediaFiles.value).forEach(file => {
         if (mediaUrl.value && mediaUrl.value.startsWith('blob:')) {
@@ -223,10 +231,10 @@ export default {
       const channel = channelName.value;
       if (!channel) return;
 
-      const channelFrames = entities.value.image.filter(img => img.channel === channel && img.data.mediaUuid);
+      const channelFrames = entities.value?.image?.filter(img => img.channel === channel && img.data.mediaUuid) || [];
       if (channelFrames.length > 0) {
         const mediaId = channelFrames[0].data.mediaUuid;
-        const mediaEntity = entities.value.media.find(m => m.id === mediaId && m.channel === channel);
+        const mediaEntity = entities.value?.media?.find(m => m.id === mediaId && m.channel === channel);
         if (mediaEntity) {
           selectedMedia.value = mediaEntity;
           // Attempt to load the media file if it exists in local storage
@@ -234,7 +242,7 @@ export default {
           mediaUrl.value = file ? URL.createObjectURL(file) : null;
         }
 
-        const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.mediaUuid === mediaId && ba.channel === channel);
+        const channelAnalysis = entities.value?.businessAnalysis?.find(ba => ba.data.mediaUuid === mediaId && ba.channel === channel);
         if (channelAnalysis) {
           selectBusinessAnalysis(channelAnalysis.id);
         }
@@ -253,13 +261,13 @@ export default {
           description: '',
           fileSize: file.size,
           mimeType: file.type,
-          type: file.type.startsWith('video/') ? 'video' : 'image',
+          type: file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image',
         };
         console.log(`Adding media to entities with mediaData for file ${file.name}:`, mediaData);
         const addedMediaId = addEntity('media', mediaData, mediaId, channelName.value);
         console.log(`Added media ID for file ${file.name}:`, addedMediaId);
 
-        const mediaEntity = entities.value.media.find(m => m.id === addedMediaId);
+        const mediaEntity = entities.value?.media?.find(m => m.id === addedMediaId);
         console.log(`Found mediaEntity for file ${file.name}:`, mediaEntity);
         // Store the raw File object locally
         mediaFiles.value[addedMediaId] = file;
@@ -307,7 +315,7 @@ export default {
       selectedFrame.value = null;
       businessAnalysis.value = null;
 
-      const channelAnalysis = entities.value.businessAnalysis.find(ba => ba.data.mediaUuid === mediaEntity.id && ba.channel === channelName.value);
+      const channelAnalysis = entities.value?.businessAnalysis?.find(ba => ba.data.mediaUuid === mediaEntity.id && ba.channel === channelName.value);
       if (channelAnalysis) {
         selectBusinessAnalysis(channelAnalysis.id);
       } else {
@@ -332,7 +340,7 @@ export default {
 
     function saveMediaEdits() {
       if (editMediaData.value.id) {
-        const mediaEntity = entities.value.media.find(m => m.id === editMediaData.value.id);
+        const mediaEntity = entities.value?.media?.find(m => m.id === editMediaData.value.id);
         if (mediaEntity) {
           const updatedData = {
             name: editMediaData.value.name,
@@ -349,7 +357,7 @@ export default {
     }
 
     function selectBusinessAnalysis(analysisId) {
-      const analysis = entities.value.businessAnalysis.find(ba => ba.id === analysisId);
+      const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
       selectedBusinessAnalysis.value = analysis;
     }
 
@@ -393,9 +401,9 @@ export default {
     }
 
     async function processFrame(imageId, imageData, timestamp, sequence) {
-      const agentPrompts = entities.value.agents
-        .filter(agent => selectedAgents.value.includes(agent.id))
-        .map(agent => {
+      const agentPrompts = entities.value?.agents
+        ?.filter(agent => selectedAgents.value.includes(agent.id))
+        ?.map(agent => {
           const systemPrompt = [
             ...(agent.data.systemPrompts || []),
             ...(agent.data.userPrompts || []),
@@ -422,7 +430,7 @@ export default {
             messageHistory,
             model: agent.data.model || 'gemini-1.5-flash',
           };
-        });
+        }) || [];
 
       try {
         const results = await analyzeFrame(imageData, agentPrompts);
@@ -464,9 +472,9 @@ export default {
     }
 
     async function generateBusinessAnalysis(selectedBusinessAgent) {
-      if (!entities.value.image.length || !selectedBusinessAgent) return;
+      if (!entities.value?.image?.length || !selectedBusinessAgent) return;
 
-      const agent = entities.value.agents.find(a => a.id === selectedBusinessAgent);
+      const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
       if (!agent) return;
 
       const systemPrompt = [
@@ -489,7 +497,7 @@ export default {
         content: userPromptContent,
       });
 
-      entities.value.image.forEach(image => {
+      entities.value?.image?.forEach(image => {
         image.data.analysis.forEach(analysis => {
           const text = analysis.response?.text || analysis.response?.description || '';
           if (text) {
@@ -513,7 +521,7 @@ export default {
         const markdown = await generateText(promptData);
         businessAnalysis.value = markdown;
         const newAnalysisId = addEntity('businessAnalysis', {
-          mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value.image[0]?.data.mediaUuid,
+          mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value?.image[0]?.data.mediaUuid,
           markdown,
         }, null, channelName.value);
         selectBusinessAnalysis(newAnalysisId);
