@@ -14,6 +14,25 @@ export default {
       default: false,
     },
   },
+  setup(props, { emit }) {
+    Vue.onMounted(() => {
+      console.log('AgentSelector allAgents:', props.allAgents);
+      console.log('AgentSelector selectedAgents:', props.selectedAgents);
+    });
+
+    function isAgentSelected(agentId) {
+      return props.selectedAgents.includes(agentId);
+    }
+
+    function toggleAgent(agentId) {
+      emit('toggle-agent', agentId);
+    }
+
+    return {
+      isAgentSelected,
+      toggleAgent,
+    };
+  },
   template: `
     <div class="flex flex-col h-full">
       <h3 class="text-xl font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Agent Selector</h3>
@@ -48,16 +67,4 @@ export default {
       </div>
     </div>
   `,
-  methods: {
-    isAgentSelected(agentId) {
-      return this.selectedAgents.includes(agentId);
-    },
-    toggleAgent(agentId) {
-      this.$emit('toggle-agent', agentId);
-    },
-  },
-  mounted() {
-    console.log('AgentSelector allAgents:', this.allAgents);
-    console.log('AgentSelector selectedAgents:', this.selectedAgents);
-  },
 };

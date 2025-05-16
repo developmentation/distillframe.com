@@ -4,8 +4,8 @@ import JsonViewer from './JsonViewer.js';
 import AgentSelector from './AgentSelector.js';
 import DownloadButton from './DownloadButton.js';
 import MediaList from './MediaList.js';
-import BusinessAnalysisList from './BusinessAnalysisList.js';
-import BusinessAnalysisViewer from './BusinessAnalysisViewer.js';
+import SimpleAnalysis from './SimpleAnalysis.js';
+import AdvancedAnalysis from './AdvancedAnalysis.js';
 import { useGlobal } from '../composables/useGlobal.js';
 import { useHistory } from '../composables/useHistory.js';
 import { useRealTime } from '../composables/useRealTime.js';
@@ -15,7 +15,7 @@ import eventBus from '../composables/eventBus.js';
 
 export default {
   name: 'Videos',
-  components: { MediaPlayer, FrameGallery, JsonViewer, AgentSelector, DownloadButton, MediaList, BusinessAnalysisList, BusinessAnalysisViewer },
+  components: { MediaPlayer, FrameGallery, JsonViewer, AgentSelector, DownloadButton, MediaList, SimpleAnalysis, AdvancedAnalysis },
   props: {
     darkMode: {
       type: Boolean,
@@ -24,7 +24,7 @@ export default {
   },
   template: `
     <div class="flex flex-col h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 p-4 gap-4">
-      <!-- First Row: Media in Channel and Project Prompt (50%/50% in desktop, responsive) -->
+      <!-- First Row: Media in Channel and Project Prompt -->
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <media-list
@@ -42,12 +42,12 @@ export default {
           <textarea
             v-model="projectPrompt"
             class="w-full h-32 p-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:outline-none transition-all"
-            placeholder="Describe the intent of this initiative (e.g., extract meaningful insights from videos or images for business analysis)..."
+            placeholder="Describe the intent of this initiative..."
           ></textarea>
         </div>
       </div>
 
-      <!-- Second Row: Media Display and Agent Selector (50%/50% in desktop, responsive) -->
+      <!-- Second Row: Media Display and Agent Selector -->
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <div v-if="!mediaUrl" class="flex flex-col gap-4">
@@ -72,7 +72,7 @@ export default {
         </div>
       </div>
 
-      <!-- Third Row: Captured Frames and Analysis Output (50%/50% in desktop, responsive) -->
+      <!-- Third Row: Captured Frames and Analysis Output -->
       <div class="flex flex-col md:flex-row gap-4">
         <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <frame-gallery
@@ -92,7 +92,7 @@ export default {
         </div>
       </div>
 
-      <!-- Fourth Row: Download Button (Full Width) -->
+      <!-- Fourth Row: Download Button -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col gap-4">
         <download-button
           :frames="frames"
@@ -103,24 +103,49 @@ export default {
         />
       </div>
 
-      <!-- Fifth Row: Business Analysis List and Business Analysis Viewer (50%/50% in desktop, responsive) -->
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-          <business-analysis-list
-            :analyses="entities.businessAnalysis"
-            :selectedAgents="selectedAgents"
-            :entities="entities"
-            :projectPrompt="projectPrompt"
-            @select-analysis="selectBusinessAnalysis"
-            @generate-business-analysis="generateBusinessAnalysis"
-            @delete-analysis="deleteBusinessAnalysis"
-            :darkMode="darkMode"
-          />
+      <!-- Fifth Row: Simple and Advanced Analysis with Tabbed Navigation -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <div class="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            @click="activeTab = 'simple'"
+            class="py-2 px-4"
+            :class="activeTab === 'simple' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 dark:text-gray-400'"
+          >
+            Simple Analysis
+          </button>
+          <button
+            @click="activeTab = 'advanced'"
+            class="py-2 px-4"
+            :class="activeTab === 'advanced' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 dark:text-gray-400'"
+          >
+            Advanced Analysis
+          </button>
         </div>
-        <div class="md:w-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-          <business-analysis-viewer
-            :analysis="selectedBusinessAnalysis"
-            :darkMode="darkMode"
+        <div class="mt-4">
+          <simple-analysis
+            v-if="activeTab === 'simple'"
+:analyses="entities.businessAnalysis"
+  :selected-agents="selectedAgents"
+  :entities="entities"
+  :project-prompt="projectPrompt"
+  :updateEntity="updateEntity"
+  :selected-business-analysis="selectedBusinessAnalysis"
+  @select-analysis="selectBusinessAnalysis"
+  @generate-business-analysis="generateBusinessAnalysis"
+  @delete-analysis="deleteBusinessAnalysis"
+  :dark-mode="darkMode"
+          />
+          <advanced-analysis
+            v-else
+:entities="entities"
+  :selected-agents="selectedAgents"
+  :project-prompt="projectPrompt"
+  :updateEntity="updateEntity"
+  :selected-business-analysis="selectedBusinessAnalysis"
+  @select-analysis="selectBusinessAnalysis"
+  @generate-business-analysis="generateBusinessAnalysis"
+  @delete-analysis="deleteBusinessAnalysis"
+  :dark-mode="darkMode"
           />
         </div>
       </div>
@@ -178,7 +203,7 @@ export default {
     const media = Vue.computed(() => entities.value?.media || []);
     const selectedMedia = Vue.ref(null);
     const mediaUrl = Vue.ref(null);
-    const mediaFiles = Vue.ref({}); // Local storage for raw File objects, keyed by media UUID
+    const mediaFiles = Vue.ref({});
     const analyzingFrames = Vue.ref(new Set());
     const frames = Vue.computed(() => {
       if (!selectedMedia.value) return [];
@@ -198,6 +223,7 @@ export default {
     const projectPrompt = Vue.ref('');
     const showEditModal = Vue.ref(false);
     const editMediaData = Vue.ref({ id: null, name: '', description: '', type: '' });
+    const activeTab = Vue.ref('simple');
 
     Vue.onMounted(() => {
       eventBus.$on('sync-history-data', () => {
@@ -207,7 +233,6 @@ export default {
         selectedAgents.value = entities.value?.agents?.map(agent => agent.id) || [];
       });
 
-      // Listen for update-media events from MediaList
       eventBus.$on('update-media', (mediaItem) => {
         if (mediaItem?.id && mediaItem?.data) {
           updateEntity('media', mediaItem.id, mediaItem.data);
@@ -218,7 +243,6 @@ export default {
     Vue.onUnmounted(() => {
       eventBus.$off('sync-history-data');
       eventBus.$off('update-media');
-      // Clean up blob URLs to prevent memory leaks
       Object.values(mediaFiles.value).forEach(file => {
         if (mediaUrl.value && mediaUrl.value.startsWith('blob:')) {
           URL.revokeObjectURL(mediaUrl.value);
@@ -237,7 +261,6 @@ export default {
         const mediaEntity = entities.value?.media?.find(m => m.id === mediaId && m.channel === channel);
         if (mediaEntity) {
           selectedMedia.value = mediaEntity;
-          // Attempt to load the media file if it exists in local storage
           const file = mediaFiles.value[mediaEntity.id];
           mediaUrl.value = file ? URL.createObjectURL(file) : null;
         }
@@ -269,12 +292,10 @@ export default {
 
         const mediaEntity = entities.value?.media?.find(m => m.id === addedMediaId);
         console.log(`Found mediaEntity for file ${file.name}:`, mediaEntity);
-        // Store the raw File object locally
         mediaFiles.value[addedMediaId] = file;
         lastMediaEntity = mediaEntity;
       }
 
-      // Select the last uploaded media item
       if (lastMediaEntity) {
         selectedMedia.value = lastMediaEntity;
         mediaUrl.value = URL.createObjectURL(files[files.length - 1]);
@@ -289,7 +310,6 @@ export default {
 
     function removeMedia(mediaEntity) {
       removeEntity('media', mediaEntity.id);
-      // Remove the file from local storage
       delete mediaFiles.value[mediaEntity.id];
       if (selectedMedia.value?.id === mediaEntity.id) {
         selectedMedia.value = null;
@@ -309,7 +329,6 @@ export default {
 
     function selectMedia(mediaEntity) {
       selectedMedia.value = mediaEntity;
-      // Load the media file from local storage if it exists
       const file = mediaFiles.value[mediaEntity.id];
       mediaUrl.value = file ? URL.createObjectURL(file) : null;
       selectedFrame.value = null;
@@ -376,7 +395,7 @@ export default {
       }
     }
 
-    async function handleExtractFrame({ timestamp, imageData }) {
+    async function handleExtractFrame({ timestamp, imageData, includeTranscription, transcription }) {
       if (!selectedMedia.value) return;
 
       const sequence = frames.value.length + 1;
@@ -389,7 +408,7 @@ export default {
       }, null, channelName.value);
 
       analyzingFrames.value.add(imageId);
-      await processFrame(imageId, imageData, timestamp, sequence);
+      await processFrame(imageId, imageData, timestamp, sequence, includeTranscription, transcription);
     }
 
     async function redoFrame(frameId) {
@@ -397,10 +416,10 @@ export default {
       if (!frame) return;
 
       analyzingFrames.value.add(frameId);
-      await processFrame(frameId, frame.data.imageData, frame.data.timestamp, frame.data.sequence);
+      await processFrame(frameId, frame.data.imageData, frame.data.timestamp, frame.data.sequence, false, null);
     }
 
-    async function processFrame(imageId, imageData, timestamp, sequence) {
+    async function processFrame(imageId, imageData, timestamp, sequence, includeTranscription, transcription) {
       const agentPrompts = entities.value?.agents
         ?.filter(agent => selectedAgents.value.includes(agent.id))
         ?.map(agent => {
@@ -423,6 +442,13 @@ export default {
               content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
             },
           ];
+
+          if (includeTranscription && transcription) {
+            messageHistory.push({
+              role: 'user',
+              content: `Transcription at ${formatTime(timestamp)}: ${transcription.speaker}: ${transcription.text}`,
+            });
+          }
 
           return {
             agentId: agent.id,
@@ -458,6 +484,12 @@ export default {
       }
     }
 
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
     function deleteFrame(frameId) {
       removeEntity('image', frameId);
       if (selectedFrame.value?.id === frameId) {
@@ -471,7 +503,7 @@ export default {
       selectedBusinessAnalysis.value = null;
     }
 
-    async function generateBusinessAnalysis(selectedBusinessAgent) {
+    async function generateBusinessAnalysis(selectedBusinessAgent, customPrompt = null, selectedArtifacts = null) {
       if (!entities.value?.image?.length || !selectedBusinessAgent) return;
 
       const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
@@ -486,31 +518,90 @@ export default {
 
       const messageHistory = [];
 
-      messageHistory.push({
-        role: 'user',
-        content: projectPrompt.value || 'No project prompt provided.',
-      });
-
-      const userPromptContent = agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.';
-      messageHistory.push({
-        role: 'user',
-        content: userPromptContent,
-      });
-
-      entities.value?.image?.forEach(image => {
-        image.data.analysis.forEach(analysis => {
-          const text = analysis.response?.text || analysis.response?.description || '';
-          if (text) {
-            messageHistory.push({
-              role: 'user',
-              content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
-            });
-          }
+      if (!customPrompt) {
+        messageHistory.push({
+          role: 'user',
+          content: projectPrompt.value || 'No project prompt provided.',
         });
-      });
+
+        const userPromptContent = agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.';
+        messageHistory.push({
+          role: 'user',
+          content: userPromptContent,
+        });
+
+        entities.value?.image?.forEach(image => {
+          image.data.analysis.forEach(analysis => {
+            const text = analysis.response?.text || analysis.response?.description || '';
+            if (text) {
+              messageHistory.push({
+                role: 'user',
+                content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+              });
+            }
+          });
+        });
+      } else {
+        messageHistory.push({
+          role: 'user',
+          content: customPrompt || 'No custom prompt provided.',
+        });
+
+        if (selectedArtifacts?.projectPrompt) {
+          messageHistory.push({
+            role: 'user',
+            content: `Project Prompt: ${projectPrompt.value}`,
+          });
+        }
+
+        if (selectedArtifacts?.transcriptions) {
+          selectedArtifacts.transcriptions.forEach(mediaId => {
+            const media = entities.value?.media?.find(m => m.id === mediaId);
+            if (media?.data?.transcription?.segments) {
+              const transcriptionText = media.data.transcription.segments
+                .map(segment => `${segment.speaker}: ${segment.text}`)
+                .join('\n');
+              messageHistory.push({
+                role: 'user',
+                content: `Transcription for ${media.data.name}:\n${transcriptionText}`,
+              });
+            }
+          });
+        }
+
+        if (selectedArtifacts?.frameAnalyses) {
+          Object.entries(selectedArtifacts.frameAnalyses).forEach(([frameId, agentIds]) => {
+            const frame = entities.value?.image?.find(img => img.id === frameId);
+            if (frame) {
+              agentIds.forEach(agentId => {
+                const analysis = frame.data.analysis.find(a => a.agentId === agentId);
+                if (analysis?.response?.text || analysis?.response?.description) {
+                  const text = analysis.response.text || analysis.response.description;
+                  messageHistory.push({
+                    role: 'user',
+                    content: `Frame Analysis (Media UUID: ${frame.data.mediaUuid}, Timestamp: ${frame.data.timestamp}, Agent: ${agentId}): ${text}`,
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        if (selectedArtifacts?.businessAnalyses) {
+          selectedArtifacts.businessAnalyses.forEach(analysisId => {
+            const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
+            if (analysis?.data?.markdown) {
+              messageHistory.push({
+                role: 'user',
+                content: `Previous Business Analysis (ID: ${analysisId}): ${analysis.data.markdown}`,
+              });
+            }
+          });
+        }
+      }
 
       const promptData = {
-        systemPrompt,
+        systemPrompt: systemPrompt + '\n\nReturn your response in a complete and comprehensive markdown document.',
         messageHistory,
         model: agent.data.model || 'gemini-1.5-flash',
       };
@@ -550,6 +641,7 @@ export default {
       projectPrompt,
       showEditModal,
       editMediaData,
+      activeTab,
       handleMediaUpload,
       reattachMedia,
       selectMedia,
@@ -566,6 +658,7 @@ export default {
       generateBusinessAnalysis,
       toggleAgent,
       toggleIncludeImages,
+      updateEntity,
     };
   },
 };

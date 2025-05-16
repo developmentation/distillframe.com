@@ -85,13 +85,22 @@ export default {
           <span v-else>No transcription available at this timestamp.</span>
         </p>
       </div>
-      <button
-        v-if="isVideo || isImage"
-        @click="captureFrame"
-        class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
-      >
-        Extract Frame
-      </button>
+      <div v-if="isVideo || isImage" class="flex flex-col gap-2">
+        <button
+          @click="captureFrame"
+          class="py-2 px-4 bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
+        >
+          Extract Frame
+        </button>
+        <label class="flex items-center gap-2 text-sm" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+          <input
+            type="checkbox"
+            v-model="includeTranscription"
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          Include Transcription in Analysis
+        </label>
+      </div>
     </div>
   `,
   setup(props, { emit }) {
@@ -100,6 +109,7 @@ export default {
     const isPlaying = Vue.ref(false);
     const currentTime = Vue.ref(0);
     const duration = Vue.ref(0);
+    const includeTranscription = Vue.ref(false);
 
     const isVideo = Vue.computed(() => props.media?.data?.type === 'video');
     const isAudio = Vue.computed(() => props.media?.data?.type === 'audio');
@@ -159,7 +169,12 @@ export default {
     async function captureFrame() {
       if (!isVideo.value && !isImage.value) return;
       const imageData = await extractFrame(mediaElement.value, currentTime.value, props.media.data.type);
-      emit('extract-frame', { timestamp: currentTime.value, imageData });
+      emit('extract-frame', {
+        timestamp: currentTime.value,
+        imageData,
+        includeTranscription: includeTranscription.value,
+        transcription: currentTranscript.value,
+      });
     }
 
     Vue.onMounted(() => {
@@ -178,6 +193,7 @@ export default {
       isAudio,
       isImage,
       currentTranscript,
+      includeTranscription,
       togglePlay,
       updateTime,
       updateDuration,
