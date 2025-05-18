@@ -34,6 +34,7 @@ export default {
             @remove-media="removeMedia"
             @edit-media="openEditMediaModal"
             @upload-media="handleMediaUpload"
+            @update-media="handleUpdateMedia"
             :darkMode="darkMode"
           />
         </div>
@@ -124,28 +125,28 @@ export default {
         <div class="mt-4">
           <simple-analysis
             v-if="activeTab === 'simple'"
-:analyses="entities.businessAnalysis"
-  :selected-agents="selectedAgents"
-  :entities="entities"
-  :project-prompt="projectPrompt"
-  :updateEntity="updateEntity"
-  :selected-business-analysis="selectedBusinessAnalysis"
-  @select-analysis="selectBusinessAnalysis"
-  @generate-business-analysis="generateBusinessAnalysis"
-  @delete-analysis="deleteBusinessAnalysis"
-  :dark-mode="darkMode"
+            :analyses="entities.businessAnalysis"
+            :selected-agents="selectedAgents"
+            :entities="entities"
+            :project-prompt="projectPrompt"
+            :updateEntity="updateEntity"
+            :selected-business-analysis="selectedBusinessAnalysis"
+            @select-analysis="selectBusinessAnalysis"
+            @generate-business-analysis="generateSimpleAnalysis"
+            @delete-analysis="deleteBusinessAnalysis"
+            :dark-mode="darkMode"
           />
           <advanced-analysis
             v-else
-:entities="entities"
-  :selected-agents="selectedAgents"
-  :project-prompt="projectPrompt"
-  :updateEntity="updateEntity"
-  :selected-business-analysis="selectedBusinessAnalysis"
-  @select-analysis="selectBusinessAnalysis"
-  @generate-business-analysis="generateBusinessAnalysis"
-  @delete-analysis="deleteBusinessAnalysis"
-  :dark-mode="darkMode"
+            :entities="entities"
+            :selected-agents="selectedAgents"
+            :project-prompt="projectPrompt"
+            :updateEntity="updateEntity"
+            :selected-business-analysis="selectedBusinessAnalysis"
+            @select-analysis="selectBusinessAnalysis"
+            @generate-business-analysis="generateAdvancedAnalysis"
+            @delete-analysis="deleteBusinessAnalysis"
+            :dark-mode="darkMode"
           />
         </div>
       </div>
@@ -232,17 +233,10 @@ export default {
         const channelEntity = entities.value?.channel?.find(c => c.id === channelName.value);
         selectedAgents.value = entities.value?.agents?.map(agent => agent.id) || [];
       });
-
-      eventBus.$on('update-media', (mediaItem) => {
-        if (mediaItem?.id && mediaItem?.data) {
-          updateEntity('media', mediaItem.id, mediaItem.data);
-        }
-      });
     });
 
     Vue.onUnmounted(() => {
       eventBus.$off('sync-history-data');
-      eventBus.$off('update-media');
       Object.values(mediaFiles.value).forEach(file => {
         if (mediaUrl.value && mediaUrl.value.startsWith('blob:')) {
           URL.revokeObjectURL(mediaUrl.value);
@@ -258,8 +252,9 @@ export default {
       const channelFrames = entities.value?.image?.filter(img => img.channel === channel && img.data.mediaUuid) || [];
       if (channelFrames.length > 0) {
         const mediaId = channelFrames[0].data.mediaUuid;
-        const mediaEntity = entities.value?.media?.find(m => m.id === mediaId && m.channel === channel);
+        let mediaEntity = entities.value?.media?.find(m => m.id === mediaId && m.channel === channel);
         if (mediaEntity) {
+          console.log('Videos.js: Loaded media entity after refresh:', mediaEntity);
           selectedMedia.value = mediaEntity;
           const file = mediaFiles.value[mediaEntity.id];
           mediaUrl.value = file ? URL.createObjectURL(file) : null;
@@ -269,6 +264,16 @@ export default {
         if (channelAnalysis) {
           selectBusinessAnalysis(channelAnalysis.id);
         }
+      }
+    }
+
+    function handleUpdateMedia(mediaItem) {
+      if (mediaItem?.id && mediaItem?.data) {
+        console.log('Videos.js: Received update-media event for media', mediaItem.id, 'with data:', mediaItem.data);
+        updateEntity('media', mediaItem.id, mediaItem.data);
+        console.log('Videos.js: Updated entity in database for media', mediaItem.id);
+      } else {
+        console.warn('Videos.js: Invalid mediaItem received in update-media event:', mediaItem);
       }
     }
 
@@ -367,6 +372,7 @@ export default {
             fileSize: mediaEntity.data.fileSize,
             mimeType: mediaEntity.data.mimeType,
             type: mediaEntity.data.type,
+            transcription: mediaEntity.data.transcription, // Preserve transcription
           };
           updateEntity('media', mediaEntity.id, updatedData);
           selectedMedia.value = { ...mediaEntity, data: updatedData };
@@ -409,14 +415,6 @@ export default {
 
       analyzingFrames.value.add(imageId);
       await processFrame(imageId, imageData, timestamp, sequence, includeTranscription, transcription);
-    }
-
-    async function redoFrame(frameId) {
-      const frame = frames.value.find(f => f.id === frameId);
-      if (!frame) return;
-
-      analyzingFrames.value.add(frameId);
-      await processFrame(frameId, frame.data.imageData, frame.data.timestamp, frame.data.sequence, false, null);
     }
 
     async function processFrame(imageId, imageData, timestamp, sequence, includeTranscription, transcription) {
@@ -503,7 +501,7 @@ export default {
       selectedBusinessAnalysis.value = null;
     }
 
-    async function generateBusinessAnalysis(selectedBusinessAgent, customPrompt = null, selectedArtifacts = null) {
+    async function generateSimpleAnalysis(selectedBusinessAgent) {
       if (!entities.value?.image?.length || !selectedBusinessAgent) return;
 
       const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
@@ -516,88 +514,145 @@ export default {
         .filter(c => c)
         .join('\n\n') || 'No system prompts provided.';
 
-      const messageHistory = [];
-
-      if (!customPrompt) {
-        messageHistory.push({
+      const messageHistory = [
+        {
           role: 'user',
           content: projectPrompt.value || 'No project prompt provided.',
-        });
-
-        const userPromptContent = agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.';
-        messageHistory.push({
+        },
+        {
           role: 'user',
-          content: userPromptContent,
-        });
+          content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
+        },
+      ];
 
-        entities.value?.image?.forEach(image => {
-          image.data.analysis.forEach(analysis => {
-            const text = analysis.response?.text || analysis.response?.description || '';
-            if (text) {
-              messageHistory.push({
-                role: 'user',
-                content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
-              });
-            }
-          });
+      entities.value?.image?.forEach(image => {
+        image.data.analysis.forEach(analysis => {
+          const text = analysis.response?.text || analysis.response?.description || '';
+          if (text) {
+            messageHistory.push({
+              role: 'user',
+              content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+            });
+          }
         });
-      } else {
+      });
+
+      const promptData = {
+        systemPrompt: systemPrompt + '\n\nReturn your response in a complete and comprehensive markdown document.',
+        messageHistory,
+        model: agent.data.model || 'gemini-1.5-flash',
+      };
+
+      console.log('Simple Analysis LLM PAYLOAD:', promptData);
+
+      try {
+        const markdown = await generateText(promptData);
+        businessAnalysis.value = markdown;
+        const newAnalysisId = addEntity('businessAnalysis', {
+          mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value?.image[0]?.data.mediaUuid,
+          markdown,
+        }, null, channelName.value);
+        selectBusinessAnalysis(newAnalysisId);
+      } catch (error) {
+        businessAnalysis.value = `Error: Unable to generate business analysis - ${error.message}`;
+        selectBusinessAnalysis(null);
+      }
+    }
+
+    async function generateAdvancedAnalysis(selectedBusinessAgent, customPrompt, selectedArtifacts) {
+      if (!entities.value?.image?.length || !selectedBusinessAgent) return;
+
+      const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
+      if (!agent) return;
+
+      console.log('Received selectedArtifacts:', selectedArtifacts);
+      console.log('Entities media:', entities.value?.media);
+
+      const systemPrompt = customPrompt
+        ? 'No system prompts provided.'
+        : [
+            ...(agent.data.systemPrompts || []),
+            ...(agent.data.userPrompts || []),
+          ]
+            .map(p => p.content)
+            .filter(c => c)
+            .join('\n\n') || 'No system prompts provided.';
+
+      const messageHistory = [];
+
+      if (customPrompt) {
         messageHistory.push({
           role: 'user',
           content: customPrompt || 'No custom prompt provided.',
         });
+      } else {
+        messageHistory.push({
+          role: 'user',
+          content: projectPrompt.value || 'No project prompt provided.',
+        });
+        messageHistory.push({
+          role: 'user',
+          content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
+        });
+      }
 
-        if (selectedArtifacts?.projectPrompt) {
-          messageHistory.push({
-            role: 'user',
-            content: `Project Prompt: ${projectPrompt.value}`,
-          });
-        }
+      if (selectedArtifacts?.projectPrompt) {
+        messageHistory.push({
+          role: 'user',
+          content: `Project Prompt: ${projectPrompt.value}`,
+        });
+      }
 
-        if (selectedArtifacts?.transcriptions) {
-          selectedArtifacts.transcriptions.forEach(mediaId => {
-            const media = entities.value?.media?.find(m => m.id === mediaId);
-            if (media?.data?.transcription?.segments) {
-              const transcriptionText = media.data.transcription.segments
-                .map(segment => `${segment.speaker}: ${segment.text}`)
-                .join('\n');
-              messageHistory.push({
-                role: 'user',
-                content: `Transcription for ${media.data.name}:\n${transcriptionText}`,
-              });
-            }
-          });
-        }
+      if (selectedArtifacts?.transcriptions?.length) {
+        console.log('Processing transcriptions:', selectedArtifacts.transcriptions);
+        selectedArtifacts.transcriptions.forEach(mediaId => {
+          const media = entities.value?.media?.find(m => m.id === mediaId);
+          console.log(`Media found for ID ${mediaId}:`, media);
+          if (media?.data?.transcription?.segments) {
+            console.log(`Transcription segments for ${mediaId}:`, media.data.transcription.segments);
+            const transcriptionText = media.data.transcription.segments
+              .map(segment => `${segment.speaker}: ${segment.text}`)
+              .join('\n');
+            messageHistory.push({
+              role: 'user',
+              content: `Transcription for ${media.data.name}:\n${transcriptionText}`,
+            });
+          } else {
+            console.log(`No transcription segments found for media ID ${mediaId}`);
+          }
+        });
+      } else {
+        console.log('No transcriptions selected in selectedArtifacts');
+      }
 
-        if (selectedArtifacts?.frameAnalyses) {
-          Object.entries(selectedArtifacts.frameAnalyses).forEach(([frameId, agentIds]) => {
-            const frame = entities.value?.image?.find(img => img.id === frameId);
-            if (frame) {
-              agentIds.forEach(agentId => {
-                const analysis = frame.data.analysis.find(a => a.agentId === agentId);
-                if (analysis?.response?.text || analysis?.response?.description) {
-                  const text = analysis.response.text || analysis.response.description;
-                  messageHistory.push({
-                    role: 'user',
-                    content: `Frame Analysis (Media UUID: ${frame.data.mediaUuid}, Timestamp: ${frame.data.timestamp}, Agent: ${agentId}): ${text}`,
-                  });
-                }
-              });
-            }
-          });
-        }
+      if (selectedArtifacts?.frameAnalyses) {
+        Object.entries(selectedArtifacts.frameAnalyses).forEach(([frameId, agentIds]) => {
+          const frame = entities.value?.image?.find(img => img.id === frameId);
+          if (frame) {
+            agentIds.forEach(agentId => {
+              const analysis = frame.data.analysis.find(a => a.agentId === agentId);
+              if (analysis?.response?.text || analysis?.response?.description) {
+                const text = analysis.response.text || analysis.response.description;
+                messageHistory.push({
+                  role: 'user',
+                  content: `Frame Analysis (Media UUID: ${frame.data.mediaUuid}, Timestamp: ${frame.data.timestamp}, Agent: ${agentId}): ${text}`,
+                });
+              }
+            });
+          }
+        });
+      }
 
-        if (selectedArtifacts?.businessAnalyses) {
-          selectedArtifacts.businessAnalyses.forEach(analysisId => {
-            const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
-            if (analysis?.data?.markdown) {
-              messageHistory.push({
-                role: 'user',
-                content: `Previous Business Analysis (ID: ${analysisId}): ${analysis.data.markdown}`,
-              });
-            }
-          });
-        }
+      if (selectedArtifacts?.businessAnalyses) {
+        selectedArtifacts.businessAnalyses.forEach(analysisId => {
+          const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
+          if (analysis?.data?.markdown) {
+            messageHistory.push({
+              role: 'user',
+              content: `Previous Business Analysis (ID: ${analysisId}): ${analysis.data.markdown}`,
+            });
+          }
+        });
       }
 
       const promptData = {
@@ -606,7 +661,7 @@ export default {
         model: agent.data.model || 'gemini-1.5-flash',
       };
 
-      console.log('Business Analysis LLM PAYLOAD:', promptData);
+      console.log('Advanced Analysis LLM PAYLOAD:', promptData);
 
       try {
         const markdown = await generateText(promptData);
@@ -650,15 +705,17 @@ export default {
       closeEditMediaModal,
       saveMediaEdits,
       handleExtractFrame,
-      redoFrame,
+      processFrame,
       deleteFrame,
       selectFrame,
       selectBusinessAnalysis,
       deleteBusinessAnalysis,
-      generateBusinessAnalysis,
+      generateSimpleAnalysis,
+      generateAdvancedAnalysis,
       toggleAgent,
       toggleIncludeImages,
       updateEntity,
+      handleUpdateMedia,
     };
   },
 };

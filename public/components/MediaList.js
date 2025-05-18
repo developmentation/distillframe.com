@@ -126,6 +126,7 @@ export default {
         const { success, data, error } = await transcribeFile(file);
         if (success) {
           item.data.transcription = data;
+          console.log(`ReattachMedia: Updated transcription for media ${item.id}:`, item.data.transcription);
           updateTranscription(item.id, item.data.name, data);
           emit('update-media', item);
         } else {
@@ -155,8 +156,11 @@ export default {
             const mediaItem = props.media?.find(m => m?.data?.name === file.name);
             if (mediaItem) {
               mediaItem.data.transcription = data;
+              console.log(`UploadMedia: Updated transcription for media ${mediaItem.id}:`, mediaItem.data.transcription);
               updateTranscription(mediaItem.id, file.name, data);
               emit('update-media', mediaItem);
+            } else {
+              console.warn(`Media item not found for file ${file.name} after upload`);
             }
           } else {
             console.error('Transcription failed for', file.name, ':', error);
@@ -167,9 +171,20 @@ export default {
 
     Vue.watch(
       () => props.media,
-      (newMedia) => {
+      (newMedia, oldMedia) => {
         if (newMedia) {
           console.log('MediaList media prop updated:', newMedia);
+          // Check for media items with transcriptions and emit update-media
+          newMedia.forEach((mediaItem, index) => {
+            if (mediaItem?.data?.transcription) {
+              // Only emit if the transcription is new or updated compared to oldMedia
+              const oldItem = oldMedia?.[index];
+              if (!oldItem || JSON.stringify(oldItem.data?.transcription) !== JSON.stringify(mediaItem.data.transcription)) {
+                console.log(`MediaList: Emitting update-media for media ${mediaItem.id} with transcription:`, mediaItem.data.transcription);
+                emit('update-media', mediaItem);
+              }
+            }
+          });
         }
       },
       { deep: true }
