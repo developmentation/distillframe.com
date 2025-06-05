@@ -525,17 +525,49 @@ export default {
         },
       ];
 
+      // entities.value?.image?.forEach(image => {
+      //   image.data.analysis.forEach(analysis => {
+      //     const text = analysis.response?.text || analysis.response?.description || '';
+      //     if (text) {
+      //       messageHistory.push({
+      //         role: 'user',
+      //         content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+      //       });
+      //     }
+      //   });
+      // });
+
+
+      // Concatenate all frame analyses into a single prompt
+      const frameAnalyses = [];
       entities.value?.image?.forEach(image => {
         image.data.analysis.forEach(analysis => {
           const text = analysis.response?.text || analysis.response?.description || '';
           if (text) {
-            messageHistory.push({
-              role: 'user',
-              content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
-            });
+            frameAnalyses.push(`Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`);
           }
         });
       });
+      
+      if (frameAnalyses.length > 0) {
+        messageHistory.push({
+          role: 'user',
+          content: frameAnalyses.join('\n\n'),
+        });
+      }
+
+
+      // entities.value?.image?.forEach(image => {
+      //   image.data.analysis.forEach(analysis => {
+      //     const text = analysis.response?.text || analysis.response?.description || '';
+      //     if (text) {
+      //       messageHistory.push({
+      //         role: 'user',
+      //         content: `Frame Analysis (Media UUID: ${image.data.mediaUuid}, Timestamp: ${image.data.timestamp}): ${text}`,
+      //       });
+      //     }
+      //   });
+      // });
 
       const promptData = {
         systemPrompt: systemPrompt + '\n\nReturn your response in a complete and comprehensive markdown document.',
@@ -559,123 +591,127 @@ export default {
       }
     }
 
-    async function generateAdvancedAnalysis(selectedBusinessAgent, customPrompt, selectedArtifacts) {
-      if (!entities.value?.image?.length || !selectedBusinessAgent) return;
+async function generateAdvancedAnalysis(selectedBusinessAgent, customPrompt, selectedArtifacts) {
+  if (!entities.value?.image?.length || !selectedBusinessAgent) return;
 
-      const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
-      if (!agent) return;
+  const agent = entities.value?.agents?.find(a => a.id === selectedBusinessAgent);
+  if (!agent) return;
 
-      console.log('Received selectedArtifacts:', selectedArtifacts);
-      console.log('Entities media:', entities.value?.media);
+  console.log('Received selectedArtifacts:', selectedArtifacts);
+  console.log('Entities media:', entities.value?.media);
 
-      const systemPrompt = customPrompt
-        ? 'No system prompts provided.'
-        : [
-            ...(agent.data.systemPrompts || []),
-            ...(agent.data.userPrompts || []),
-          ]
-            .map(p => p.content)
-            .filter(c => c)
-            .join('\n\n') || 'No system prompts provided.';
+  const systemPrompt = customPrompt
+    ? 'No system prompts provided.'
+    : [
+        ...(agent.data.systemPrompts || []),
+        ...(agent.data.userPrompts || []),
+      ]
+        .map(p => p.content)
+        .filter(c => c)
+        .join('\n\n') || 'No system prompts provided.';
 
-      const messageHistory = [];
+  const messageHistory = [];
 
-      if (customPrompt) {
+  if (customPrompt) {
+    messageHistory.push({
+      role: 'user',
+      content: customPrompt || 'No custom prompt provided.',
+    });
+  } else {
+    messageHistory.push({
+      role: 'user',
+      content: projectPrompt.value || 'No project prompt provided.',
+    });
+    messageHistory.push({
+      role: 'user',
+      content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
+    });
+  }
+
+  if (selectedArtifacts?.projectPrompt) {
+    messageHistory.push({
+      role: 'user',
+      content: `Project Prompt: ${projectPrompt.value}`,
+    });
+  }
+
+  if (selectedArtifacts?.transcriptions?.length) {
+    console.log('Processing transcriptions:', selectedArtifacts.transcriptions);
+    selectedArtifacts.transcriptions.forEach(mediaId => {
+      const media = entities.value?.media?.find(m => m.id === mediaId);
+      console.log(`Media found for ID ${mediaId}:`, media);
+      if (media?.data?.transcription?.segments) {
+        console.log(`Transcription segments for ${mediaId}:`, media.data.transcription.segments);
+        const transcriptionText = media.data.transcription.segments
+          .map(segment => `${segment.speaker}: ${segment.text}`)
+          .join('\n');
         messageHistory.push({
           role: 'user',
-          content: customPrompt || 'No custom prompt provided.',
+          content: `Transcription for ${media.data.name}:\n${transcriptionText}`,
         });
       } else {
-        messageHistory.push({
-          role: 'user',
-          content: projectPrompt.value || 'No project prompt provided.',
-        });
-        messageHistory.push({
-          role: 'user',
-          content: agent.data.userPrompts?.map(p => p.content).filter(c => c).join('\n\n') || 'No user prompts provided.',
-        });
+        console.log(`No transcription segments found for media ID ${mediaId}`);
       }
+    });
+  } else {
+    console.log('No transcriptions selected in selectedArtifacts');
+  }
 
-      if (selectedArtifacts?.projectPrompt) {
-        messageHistory.push({
-          role: 'user',
-          content: `Project Prompt: ${projectPrompt.value}`,
-        });
-      }
-
-      if (selectedArtifacts?.transcriptions?.length) {
-        console.log('Processing transcriptions:', selectedArtifacts.transcriptions);
-        selectedArtifacts.transcriptions.forEach(mediaId => {
-          const media = entities.value?.media?.find(m => m.id === mediaId);
-          console.log(`Media found for ID ${mediaId}:`, media);
-          if (media?.data?.transcription?.segments) {
-            console.log(`Transcription segments for ${mediaId}:`, media.data.transcription.segments);
-            const transcriptionText = media.data.transcription.segments
-              .map(segment => `${segment.speaker}: ${segment.text}`)
-              .join('\n');
-            messageHistory.push({
-              role: 'user',
-              content: `Transcription for ${media.data.name}:\n${transcriptionText}`,
-            });
-          } else {
-            console.log(`No transcription segments found for media ID ${mediaId}`);
-          }
-        });
-      } else {
-        console.log('No transcriptions selected in selectedArtifacts');
-      }
-
-      if (selectedArtifacts?.frameAnalyses) {
-        Object.entries(selectedArtifacts.frameAnalyses).forEach(([frameId, agentIds]) => {
-          const frame = entities.value?.image?.find(img => img.id === frameId);
-          if (frame) {
-            agentIds.forEach(agentId => {
-              const analysis = frame.data.analysis.find(a => a.agentId === agentId);
-              if (analysis?.response?.text || analysis?.response?.description) {
-                const text = analysis.response.text || analysis.response.description;
-                messageHistory.push({
-                  role: 'user',
-                  content: `Frame Analysis (Media UUID: ${frame.data.mediaUuid}, Timestamp: ${frame.data.timestamp}, Agent: ${agentId}): ${text}`,
-                });
-              }
-            });
+  if (selectedArtifacts?.frameAnalyses) {
+    const frameAnalyses = [];
+    Object.entries(selectedArtifacts.frameAnalyses).forEach(([frameId, agentIds]) => {
+      const frame = entities.value?.image?.find(img => img.id === frameId);
+      if (frame) {
+        agentIds.forEach(agentId => {
+          const analysis = frame.data.analysis.find(a => a.agentId === agentId);
+          if (analysis?.response?.text || analysis?.response?.description) {
+            const text = analysis.response.text || analysis.response.description;
+            frameAnalyses.push(`Frame Analysis (Media UUID: ${frame.data.mediaUuid}, Timestamp: ${frame.data.timestamp}, Agent: ${agentId}): ${text}`);
           }
         });
       }
-
-      if (selectedArtifacts?.businessAnalyses) {
-        selectedArtifacts.businessAnalyses.forEach(analysisId => {
-          const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
-          if (analysis?.data?.markdown) {
-            messageHistory.push({
-              role: 'user',
-              content: `Previous Business Analysis (ID: ${analysisId}): ${analysis.data.markdown}`,
-            });
-          }
-        });
-      }
-
-      const promptData = {
-        systemPrompt: systemPrompt + '\n\nReturn your response in a complete and comprehensive markdown document.',
-        messageHistory,
-        model: agent.data.model || 'gemini-1.5-flash',
-      };
-
-      console.log('Advanced Analysis LLM PAYLOAD:', promptData);
-
-      try {
-        const markdown = await generateText(promptData);
-        businessAnalysis.value = markdown;
-        const newAnalysisId = addEntity('businessAnalysis', {
-          mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value?.image[0]?.data.mediaUuid,
-          markdown,
-        }, null, channelName.value);
-        selectBusinessAnalysis(newAnalysisId);
-      } catch (error) {
-        businessAnalysis.value = `Error: Unable to generate business analysis - ${error.message}`;
-        selectBusinessAnalysis(null);
-      }
+    });
+    if (frameAnalyses.length > 0) {
+      messageHistory.push({
+        role: 'user',
+        content: frameAnalyses.join('\n\n'),
+      });
     }
+  }
+
+  if (selectedArtifacts?.businessAnalyses) {
+    selectedArtifacts.businessAnalyses.forEach(analysisId => {
+      const analysis = entities.value?.businessAnalysis?.find(ba => ba.id === analysisId);
+      if (analysis?.data?.markdown) {
+        messageHistory.push({
+          role: 'user',
+          content: `Previous Business Analysis (ID: ${analysisId}): ${analysis.data.markdown}`,
+        });
+      }
+    });
+  }
+
+  const promptData = {
+    systemPrompt: systemPrompt + '\n\nReturn your response in a complete and comprehensive markdown document.',
+    messageHistory,
+    model: agent.data.model || 'gemini-1.5-flash',
+  };
+
+  console.log('Advanced Analysis LLM PAYLOAD:', promptData);
+
+  try {
+    const markdown = await generateText(promptData);
+    businessAnalysis.value = markdown;
+    const newAnalysisId = addEntity('businessAnalysis', {
+      mediaUuid: selectedMedia.value ? selectedMedia.value.id : entities.value?.image[0]?.data.mediaUuid,
+      markdown,
+    }, null, channelName.value);
+    selectBusinessAnalysis(newAnalysisId);
+  } catch (error) {
+    businessAnalysis.value = `Error: Unable to generate business analysis - ${error.message}`;
+    selectBusinessAnalysis(null);
+  }
+}
 
     function toggleIncludeImages(value) {
       includeImages.value = value;
