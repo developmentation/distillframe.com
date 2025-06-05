@@ -37,6 +37,17 @@ export default {
           >
             Add New Agent
           </button>
+          <label
+            class="py-2 px-4 bg-purple-600 dark:bg-purple-500 dark:hover:bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md transition-all cursor-pointer"
+          >
+            Upload Category
+            <input
+              type="file"
+              accept=".json"
+              @change="handleCategoryUpload"
+              class="hidden"
+            />
+          </label>
         </div>
       </div>
 
@@ -135,7 +146,7 @@ export default {
                         </select>
                       </td>
                       <td class="py-3 px-4">
-                        <button @click="openPromptModal('system', index, prompt.content)" class="py-1 px-3 bg-blue-5 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
+                        <button @click="openPromptModal('system', index, prompt.content)" class="py-1 px-3 bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
                           Edit
                         </button>
                       </td>
@@ -237,15 +248,20 @@ export default {
     const promptContent = Vue.ref('');
     const selectedCategory = Vue.ref('business');
     const defaultAgentCategories = Vue.ref({});
+    const uploadError = Vue.ref('');
 
     const categories = Vue.computed(() => Object.keys(defaultAgentCategories.value).map(key => ({
       value: key,
-      label: defaultAgentCategories.value[key][0].category,
+      label: defaultAgentCategories.value[key][0]?.category || key,
     })));
 
     // Load default agent categories on mount
     Vue.onMounted(async () => {
-      defaultAgentCategories.value = await getDefaultAgentCategories();
+      try {
+        defaultAgentCategories.value = await getDefaultAgentCategories();
+      } catch (error) {
+        console.error('Failed to load default agent categories:', error);
+      }
       if (!models.value.some(m => m.model === 'gemini-1.5-flash')) {
         models.value.push({
           name: { en: 'Gemini 1.5 Flash', fr: 'Gemini 1.5 Flash' },
@@ -404,6 +420,78 @@ export default {
       return `/assets/aiagent${placeholderImage}.jpg`;
     }
 
+    async function handleCategoryUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.name.endsWith('.json')) {
+        uploadError.value = 'Please upload a .json file.';
+        alert(uploadError.value);
+        return;
+      }
+
+      try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const jsonContent = JSON.parse(e.target.result);
+            if (!Array.isArray(jsonContent) || jsonContent.length === 0) {
+              uploadError.value = 'Invalid JSON format: Must be a non-empty array of agents.';
+              alert(uploadError.value);
+              return;
+            }
+
+            // Validate the structure of the first agent
+            const firstAgent = jsonContent[0];
+            if (!firstAgent.name || !firstAgent.category || !Array.isArray(firstAgent.userPrompts) || !Array.isArray(firstAgent.systemPrompts)) {
+              uploadError.value = 'Invalid agent format: Each agent must have name, category, userPrompts, and systemPrompts.';
+              alert(uploadError.value);
+              return;
+            }
+
+            // Generate a category key from the file name (without .json)
+            const categoryKey = file.name.replace('.json', '').toLowerCase();
+            if (defaultAgentCategories.value[categoryKey]) {
+              uploadError.value = `Category "${categoryKey}" already exists.`;
+              alert(uploadError.value);
+              return;
+            }
+
+            // Process agents to add UUIDs and placeholder images
+            const processedAgents = jsonContent.map(agent => ({
+              ...agent,
+              userPrompts: agent.userPrompts.map(prompt => ({
+                ...prompt,
+                id: uuidv4(),
+              })),
+              systemPrompts: agent.systemPrompts.map(prompt => ({
+                ...prompt,
+                id: uuidv4(),
+              })),
+              placeholderImage: Math.floor(Math.random() * 10) + 1,
+            }));
+
+            // Add the new category to defaultAgentCategories
+            defaultAgentCategories.value = {
+              ...defaultAgentCategories.value,
+              [categoryKey]: processedAgents,
+            };
+
+            // Reset the file input
+            event.target.value = '';
+            uploadError.value = '';
+          } catch (error) {
+            uploadError.value = 'Error parsing JSON file: ' + error.message;
+            alert(uploadError.value);
+          }
+        };
+        reader.readAsText(file);
+      } catch (error) {
+        uploadError.value = 'Error reading file: ' + error.message;
+        alert(uploadError.value);
+      }
+    }
+
     return {
       entities,
       agentName,
@@ -424,6 +512,7 @@ export default {
       models,
       selectedCategory,
       categories,
+      uploadError,
       validateName,
       validateEditName,
       openEditModal,
@@ -438,6 +527,7 @@ export default {
       removeAgent,
       addDefaultAgents,
       returnImage,
+      handleCategoryUpload,
     };
   },
 };
